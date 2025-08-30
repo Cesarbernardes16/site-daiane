@@ -1,273 +1,1229 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Play, CheckCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, BookOpen, Clock, User, Upload, Search } from 'lucide-react';
+import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 
-const IntegrationsTab = () => {
+const TrainingsTab = () => {
   const [trainings, setTrainings] = useState([]);
-  const [availablePositions, setAvailablePositions] = useState([]);
-  const [selectedPositions, setSelectedPositions] = useState([]);
-  const [currentWeek, setCurrentWeek] = useState('');
+  const [filteredTrainings, setFilteredTrainings] = useState([]);
+  const [filter, setFilter] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTraining, setEditingTraining] = useState(null);
+  const [formData, setFormData] = useState({
+    funcao: '',
+    treinamento: '',
+    duracao: '',
+    responsavel: '',
+    tipo: 'Individual'
+  });
+  const fileInputRef = useRef(null);
+
+  const initialTrainings = [
+    { id: 1, funcao: "Técnico de Segurança", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 2, funcao: "Técnico de Segurança", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 3, funcao: "Técnico de Segurança", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 4, funcao: "Técnico de Segurança", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 5, funcao: "Técnico de Segurança", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 6, funcao: "Técnico de Segurança", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 7, funcao: "Técnico de Segurança", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 8, funcao: "Técnico de Segurança", treinamento: "Fluxo interno da Operação", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 9, funcao: "Técnico de Segurança", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 10, funcao: "Técnico de Segurança", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 1, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 11, funcao: "Técnico de Segurança", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 12, funcao: "Técnico de Segurança", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 13, funcao: "Técnico de Segurança", treinamento: "Rotinas Administrativas", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 14, funcao: "Técnico de Segurança", treinamento: "Rotina de Rota", duracao: 3.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 15, funcao: "Técnico de Segurança", treinamento: "Rotinas de Manutenção", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 16, funcao: "Técnico de Segurança", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 17, funcao: "Técnico de Segurança", treinamento: "Direção Defensiva Prático Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 18, funcao: "Técnico de Segurança", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 19, funcao: "Técnico de Segurança", treinamento: "Rotina de Armazém", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 20, funcao: "Técnico de Segurança", treinamento: "Rotina de Puxada", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 21, funcao: "Técnico de Segurança", treinamento: "Rotinas de Gente / Gestão", duracao: 3, responsavel: "N/A", tipo: "Individual" },
+    { id: 22, funcao: "Técnico de Segurança", treinamento: "Sistemas Gente / Gestão / Segurança", duracao: 6, responsavel: "N/A", tipo: "Individual" },
+    { id: 23, funcao: "Técnico de Roadshow", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 24, funcao: "Técnico de Roadshow", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 25, funcao: "Técnico de Roadshow", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 26, funcao: "Técnico de Roadshow", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 27, funcao: "Técnico de Roadshow", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 28, funcao: "Técnico de Roadshow", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 29, funcao: "Técnico de Roadshow", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 30, funcao: "Técnico de Roadshow", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 31, funcao: "Técnico de Roadshow", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 32, funcao: "Técnico de Roadshow", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 33, funcao: "Técnico de Roadshow", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 34, funcao: "Técnico de Roadshow", treinamento: "Rotinas Roadshow", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 35, funcao: "Técnico de Roadshow", treinamento: "OCP/PTL", duracao: 2, responsavel: "ARMAZÉM", tipo: "Individual" },
+    { id: 36, funcao: "Técnico de Roadshow", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 37, funcao: "Técnico de Roadshow", treinamento: "Rotina Financeiras", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 38, funcao: "Técnico de Roadshow", treinamento: "Procedimentos de Entrega", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 39, funcao: "Técnico de Roadshow", treinamento: "Rotinas de Monitoramento", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 40, funcao: "Técnico de Roadshow", treinamento: "Rotina de Gestão da Revenda", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 41, funcao: "Técnico de Roadshow", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 42, funcao: "Técnico de Roadshow", treinamento: "Treinamento de Rastreador (puxada)", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 43, funcao: "Técnico de Roadshow", treinamento: "Rotina de Armazém", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 44, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 45, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 46, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 47, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 48, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 49, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 50, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 51, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 52, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 53, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Treinamento Direção Econômica e Defensiva", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 54, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Direção Econômica e Defensiva", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 55, funcao: "Supervisor e Coordenador de Marketing", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 56, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Vendas", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 57, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Marketing", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 58, funcao: "Supervisor e Coordenador de Marketing", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 59, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 60, funcao: "Supervisor e Coordenador de Marketing", treinamento: "SPO Marketing - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 61, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas Administrativas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 62, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Monitoramento", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 63, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas Financeiras", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 64, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 65, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Gente e Gestão / DP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 66, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Prestação de contas física", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 67, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Supervisão", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 68, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Manutenção", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 69, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 70, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotina de Rota", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 71, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 72, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Rotinas de Gestão da Revenda", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 73, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 74, funcao: "Supervisor e Coordenador de Marketing", treinamento: "Liderança (Específico para (gerentes,)", duracao: 2, responsavel: "EXTERNO", tipo: "Individual" },
+    { id: 75, funcao: "Técnico de Manutenção Operacional", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 76, funcao: "Técnico de Manutenção Operacional", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 77, funcao: "Técnico de Manutenção Operacional", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 78, funcao: "Técnico de Manutenção Operacional", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 79, funcao: "Técnico de Manutenção Operacional", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 80, funcao: "Técnico de Manutenção Operacional", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 81, funcao: "Técnico de Manutenção Operacional", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 82, funcao: "Técnico de Manutenção Operacional", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 83, funcao: "Técnico de Manutenção Operacional", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 84, funcao: "Técnico de Manutenção Operacional", treinamento: "Treinamento Direção Econômica e Defensiva", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 85, funcao: "Técnico de Manutenção Operacional", treinamento: "Direção Econômica e Defensiva", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 86, funcao: "Técnico de Manutenção Operacional", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 87, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotinas de Manutenção", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 88, funcao: "Técnico de Manutenção Operacional", treinamento: "OCP/PTL", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 89, funcao: "Técnico de Manutenção Operacional", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 90, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 91, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotinas de Armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 92, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotinas de Gestão da Revenda", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 93, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotinas de Vendas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 94, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 95, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotinas de Supervisão", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 96, funcao: "Técnico de Manutenção Operacional", treinamento: "Prestação de contas física e financeira", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 97, funcao: "Técnico de Manutenção Operacional", treinamento: "Rotina de Rota", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 98, funcao: "Técnico de Manutenção Operacional", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 99, funcao: "Supervisor Nível de Serviço", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 100, funcao: "Supervisor Nível de Serviço", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 101, funcao: "Supervisor Nível de Serviço", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 102, funcao: "Supervisor Nível de Serviço", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 103, funcao: "Supervisor Nível de Serviço", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 104, funcao: "Supervisor Nível de Serviço", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 105, funcao: "Supervisor Nível de Serviço", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 106, funcao: "Supervisor Nível de Serviço", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 107, funcao: "Supervisor Nível de Serviço", treinamento: "Treinamento Direção Econômica e Defensiva Teórico", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 108, funcao: "Supervisor Nível de Serviço", treinamento: "Direção Econômica e Defensiva Prático", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 109, funcao: "Supervisor Nível de Serviço", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 110, funcao: "Supervisor Nível de Serviço", treinamento: "SPO Vendas - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 111, funcao: "Supervisor Nível de Serviço", treinamento: "Rotinas de Vendas", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 112, funcao: "Supervisor Nível de Serviço", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 113, funcao: "Supervisor Nível de Serviço", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 114, funcao: "Supervisor Nível de Serviço", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 115, funcao: "Supervisor Nível de Serviço", treinamento: "Procedimentos de Entrega", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 116, funcao: "Supervisor Nível de Serviço", treinamento: "Rotinas Logística", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 117, funcao: "Supervisor Nível de Serviço", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 118, funcao: "Supervisor Nível de Serviço", treinamento: "ROTA Nº 03", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 119, funcao: "Supervisor Nível de Serviço", treinamento: "Liderança", duracao: 2, responsavel: "EXTERNO", tipo: "Individual" },
+    { id: 120, funcao: "Supervisor Nível de Serviço", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 121, funcao: "Secretária", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 122, funcao: "Secretária", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 123, funcao: "Secretária", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 124, funcao: "Secretária", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 125, funcao: "Secretária", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 126, funcao: "Secretária", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 127, funcao: "Secretária", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 128, funcao: "Secretária", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 129, funcao: "Secretária", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 130, funcao: "Secretária", treinamento: "Rotinas Secretariado", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 131, funcao: "Secretária", treinamento: "Rotinas de Gente e Gestão / DP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 132, funcao: "Secretária", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 133, funcao: "Secretária", treinamento: "Rotinas Administrativas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 134, funcao: "Secretária", treinamento: "Rotina Financeiras", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 135, funcao: "Secretária", treinamento: "OCP/PTL", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 136, funcao: "Secretária", treinamento: "Fluxo interno Revenda", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 137, funcao: "Secretária", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 138, funcao: "Secretária", treinamento: "Rotina de Gestão da Revenda", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 139, funcao: "Secretária", treinamento: "Rotina de Manutenção", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 140, funcao: "Secretária", treinamento: "Rotinas de Supervisão", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 141, funcao: "Secretária", treinamento: "Rotinas de Vendas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 142, funcao: "Secretária", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 143, funcao: "Secretária", treinamento: "Rotinas de Armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 144, funcao: "Secretária", treinamento: "Rotina de Rota", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 145, funcao: "Secretária", treinamento: "Procedimentos de Entrega", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 146, funcao: "Operador de empilhadeira", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 147, funcao: "Operador de empilhadeira", treinamento: "Team room", duracao: 0.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 148, funcao: "Operador de empilhadeira", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 149, funcao: "Operador de empilhadeira", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 150, funcao: "Operador de empilhadeira", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 151, funcao: "Operador de empilhadeira", treinamento: "Visita às instalações da unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 152, funcao: "Operador de empilhadeira", treinamento: "Fluxo interno da Operação", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 153, funcao: "Operador de empilhadeira", treinamento: "Vídeos Treinamento para Operadores (OT)", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 154, funcao: "Operador de empilhadeira", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 155, funcao: "Operador de empilhadeira", treinamento: "Programa 5S", duracao: 0.5, responsavel: "N/A", tipo: "Grupo" },
+    { id: 156, funcao: "Operador de empilhadeira", treinamento: "Tempos e Movimentos", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 157, funcao: "Operador de empilhadeira", treinamento: "Rotinas Logísticas OCP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 158, funcao: "Operador de empilhadeira", treinamento: "Rotinas Logísticas PTL", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 159, funcao: "Operador de empilhadeira", treinamento: "Carga e descarga", duracao: 1, responsavel: "SD", tipo: "Individual" },
+    { id: 160, funcao: "Operador de empilhadeira", treinamento: "Indicadores da área", duracao: 1, responsavel: "AREA", tipo: "Individual" },
+    { id: 161, funcao: "Operador de empilhadeira", treinamento: "Treinamento Prontuário do Condutor/Telemetria e WMS", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 162, funcao: "Operador de empilhadeira", treinamento: "Direção Econômica e Defensiva Teórico", duracao: 1, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 163, funcao: "Operador de empilhadeira", treinamento: "Empilhadeira - Teórico", duracao: 1.67, responsavel: "TEC.SEGURANÇA", tipo: "Individual" },
+    { id: 164, funcao: "Operador de empilhadeira", treinamento: "Escolinha de Segurança - Empilhadeiras (Prática)", duracao: 3, responsavel: "TEC.SEGURANÇA", tipo: "Individual" },
+    { id: 165, funcao: "Operador de empilhadeira", treinamento: "Bate papo com Padrinho (a)", duracao: 0.33, responsavel: "PADRINHO", tipo: "Individual" },
+    { id: 166, funcao: "Operador de empilhadeira", treinamento: "Acompanhamento de rotina", duracao: 2, responsavel: "OPERADOR PADRINHO", tipo: "Individual" },
+    { id: 167, funcao: "Operador de empilhadeira", treinamento: "Reforço assuntos de Gente", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 168, funcao: "Operador de empilhadeira", treinamento: "Reforço sobre 5S", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 169, funcao: "Operador de empilhadeira", treinamento: "Reforço Rotinas Logísticas OCP", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 170, funcao: "Operador de empilhadeira", treinamento: "Reforço Rotinas Logísticas PTL", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 171, funcao: "Operador de empilhadeira", treinamento: "Reforço sobre Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 172, funcao: "Operador de empilhadeira", treinamento: "Reforço sobre fluxo interno", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 173, funcao: "Operador de empilhadeira", treinamento: "WMS (quando aplicável)", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 174, funcao: "Operador de empilhadeira", treinamento: "Check de Retenção", duracao: 0.67, responsavel: "FERNANDA", tipo: "Individual" },
+    { id: 175, funcao: "Operador de empilhadeira", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 176, funcao: "Operador de empilhadeira", treinamento: "Team room", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 177, funcao: "Operador de empilhadeira", treinamento: "Reforço sobre Indicadores", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 178, funcao: "Operador de empilhadeira", treinamento: "Treinamento abastecedores (quando aplicável)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 179, funcao: "Operador de empilhadeira", treinamento: "Reforço sobre carga e descarga", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 180, funcao: "Operador de empilhadeira", treinamento: "Rotinas de armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 181, funcao: "Operador de empilhadeira", treinamento: "Bate papo com Gerente", duracao: 0.5, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 182, funcao: "Operador de empilhadeira", treinamento: "Formatura", duracao: 0.67, responsavel: "ANIELLY", tipo: "Individual" },
+    { id: 183, funcao: "Promotor", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 184, funcao: "Promotor", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 185, funcao: "Promotor", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 186, funcao: "Promotor", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 187, funcao: "Promotor", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 188, funcao: "Promotor", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 189, funcao: "Promotor", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 190, funcao: "Promotor", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 191, funcao: "Promotor", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 192, funcao: "Promotor", treinamento: "Treinamento Direção Econômica e Defensiva", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 193, funcao: "Promotor", treinamento: "Direção Econômica e Defensiva", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 194, funcao: "Promotor", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 195, funcao: "Promotor", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 196, funcao: "Promotor", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 197, funcao: "Promotor", treinamento: "SPO Marketing - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 198, funcao: "Promotor", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 199, funcao: "Promotor", treinamento: "Rotina de Marketing", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 200, funcao: "Promotor", treinamento: "Rotinas de Armazém", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 201, funcao: "Promotor", treinamento: "Rotinas de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 202, funcao: "Promotor", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 203, funcao: "Representante de Negocios", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 204, funcao: "Representante de Negocios", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 205, funcao: "Representante de Negocios", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 206, funcao: "Representante de Negocios", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 207, funcao: "Representante de Negocios", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 208, funcao: "Representante de Negocios", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 209, funcao: "Representante de Negocios", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 210, funcao: "Representante de Negocios", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 211, funcao: "Representante de Negocios", treinamento: "Treinamento Direção Econômica e Defensiva Teórico", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 212, funcao: "Representante de Negocios", treinamento: "Direção Econômica e Defensiva Prático", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 213, funcao: "Representante de Negocios", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 214, funcao: "Representante de Negocios", treinamento: "SPO Vendas - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 215, funcao: "Representante de Negocios", treinamento: "Rotinas de Vendas", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 216, funcao: "Representante de Negocios", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 217, funcao: "Representante de Negocios", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 218, funcao: "Representante de Negocios", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 219, funcao: "Representante de Negocios", treinamento: "Procedimentos de Entrega", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 220, funcao: "Representante de Negocios", treinamento: "Rotinas Logística", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 221, funcao: "Motorista carreta puxada", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 222, funcao: "Motorista carreta puxada", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 223, funcao: "Motorista carreta puxada", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 224, funcao: "Motorista carreta puxada", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 225, funcao: "Motorista carreta puxada", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 226, funcao: "Motorista carreta puxada", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 227, funcao: "Motorista carreta puxada", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 228, funcao: "Motorista carreta puxada", treinamento: "Qualidade Assegurada", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 229, funcao: "Motorista carreta puxada", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 230, funcao: "Motorista carreta puxada", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 231, funcao: "Motorista carreta puxada", treinamento: "Procedimentos Operacionais I", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 232, funcao: "Motorista carreta puxada", treinamento: "Procedimentos Operacionais II", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 233, funcao: "Motorista carreta puxada", treinamento: "Procedimentos Operacionais III", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 234, funcao: "Motorista carreta puxada", treinamento: "Procedimentos Operacionais IV", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 235, funcao: "Motorista carreta puxada", treinamento: "Direção Econômica e Defensiva Teórico", duracao: 3.17, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 236, funcao: "Motorista carreta puxada", treinamento: "Check de Retenção", duracao: 0.5, responsavel: "FERNANDA", tipo: "Individual" },
+    { id: 237, funcao: "Motorista carreta puxada", treinamento: "Direção Econômica e Defensiva Prático", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 238, funcao: "Motorista carreta puxada", treinamento: "Treinamento de Segurança CIA", duracao: 3, responsavel: "N/A", tipo: "Grupo" },
+    { id: 239, funcao: "Motorista carreta puxada", treinamento: "Integração na Cervejaria", duracao: 3, responsavel: "PADRINHO", tipo: "Individual" },
+    { id: 240, funcao: "Motorista carreta puxada", treinamento: "Acompanhamento de viagem", duracao: 6.67, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 241, funcao: "Motorista carreta puxada", treinamento: "Reforçar assuntos de Gente", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 242, funcao: "Motorista carreta puxada", treinamento: "Reforçar sobre 5S", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 243, funcao: "Motorista carreta puxada", treinamento: "Reforçar sobre Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 244, funcao: "Motorista carreta puxada", treinamento: "Rotinas de Frota / Manutenção", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 245, funcao: "Motorista carreta puxada", treinamento: "Reforço sobre fluxo interno", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 246, funcao: "Motorista carreta puxada", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 247, funcao: "Motorista carreta puxada", treinamento: "Rotinas Logísticas OCP - Armazém", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 248, funcao: "Motorista carreta puxada", treinamento: "Rotinas Logísticas PTL - Armazém", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 249, funcao: "Motorista carreta puxada", treinamento: "Rotinas de Apoio", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 250, funcao: "Motorista carreta puxada", treinamento: "Treinamento de Serras - FABET (quando aplicável)", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 251, funcao: "Mecanico", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 252, funcao: "Mecanico", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 253, funcao: "Mecanico", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 254, funcao: "Mecanico", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 255, funcao: "Mecanico", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 256, funcao: "Mecanico", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 257, funcao: "Mecanico", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 258, funcao: "Mecanico", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 259, funcao: "Mecanico", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 260, funcao: "Mecanico", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 261, funcao: "Mecanico", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 3, responsavel: "N/A", tipo: "Individual" },
+    { id: 262, funcao: "Mecanico", treinamento: "5S e Comportamento Seguro na Oficina", duracao: 0.83, responsavel: "MECANICO/FROTA", tipo: "Individual" },
+    { id: 263, funcao: "Mecanico", treinamento: "Direção Econômica e Defensiva Teórico", duracao: 3.17, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 264, funcao: "Mecanico", treinamento: "Elétrica e Mecânica Básica e Avançada", duracao: 2.83, responsavel: "TERCEIRO", tipo: "Individual" },
+    { id: 265, funcao: "Mecanico", treinamento: "Pilar Frota DPO", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 266, funcao: "Mecanico", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 267, funcao: "Mecanico", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 268, funcao: "Mecanico", treinamento: "Planejamento Estratégico do Operador", duracao: 0.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 269, funcao: "Mecanico", treinamento: "Checklist", duracao: 1.5, responsavel: "FROTA", tipo: "Individual" },
+    { id: 270, funcao: "Mecanico", treinamento: "Gestão de consumo", duracao: 1, responsavel: "FROTA", tipo: "Individual" },
+    { id: 271, funcao: "Mecanico", treinamento: "Conhecendo os equipamentos", duracao: 1, responsavel: "FROTA", tipo: "Individual" },
+    { id: 272, funcao: "Mecanico", treinamento: "Gestão MTBF e MTTF", duracao: 2, responsavel: "FROTA", tipo: "Individual" },
+    { id: 273, funcao: "Mecanico", treinamento: "Treinamento Telemetria/Prontuário do Condutor", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 274, funcao: "Mecanico", treinamento: "Direção Econômica e Defensiva Prático", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 275, funcao: "Mecanico", treinamento: "Rotinas de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 276, funcao: "Motorista caminhão distribuição", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 277, funcao: "Motorista caminhão distribuição", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 278, funcao: "Motorista caminhão distribuição", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 279, funcao: "Motorista caminhão distribuição", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 280, funcao: "Motorista caminhão distribuição", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 281, funcao: "Motorista caminhão distribuição", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 282, funcao: "Motorista caminhão distribuição", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 283, funcao: "Motorista caminhão distribuição", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 284, funcao: "Motorista caminhão distribuição", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 285, funcao: "Motorista caminhão distribuição", treinamento: "Visita à Reunião Matinal", duracao: 0.17, responsavel: "ENTREGA", tipo: "Individual" },
+    { id: 286, funcao: "Motorista caminhão distribuição", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 287, funcao: "Motorista caminhão distribuição", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 288, funcao: "Motorista caminhão distribuição", treinamento: "Treinamento PDV Simulado / Qualidade Atendimento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 289, funcao: "Motorista caminhão distribuição", treinamento: "Rotinas Logísticas OCP - Armazém", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 290, funcao: "Motorista caminhão distribuição", treinamento: "Check de Retenção", duracao: 0.67, responsavel: "FERNANDA", tipo: "Individual" },
+    { id: 291, funcao: "Motorista caminhão distribuição", treinamento: "Direção Econômica e Defensiva Teórico", duracao: 3.17, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 292, funcao: "Motorista caminhão distribuição", treinamento: "Bate papo com padrinho (a)", duracao: 0.33, responsavel: "PADRINHO", tipo: "Individual" },
+    { id: 293, funcao: "Motorista caminhão distribuição", treinamento: "Direção Econômica e Defensiva Prático", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 294, funcao: "Motorista caminhão distribuição", treinamento: "Acompanhamento GSD", duracao: 2, responsavel: "SD", tipo: "Individual" },
+    { id: 295, funcao: "Motorista caminhão distribuição", treinamento: "Reforçar assuntos de Gente", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 296, funcao: "Motorista caminhão distribuição", treinamento: "Reforçar sobre 5S", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 297, funcao: "Motorista caminhão distribuição", treinamento: "Reforçar sobre Entrega", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 298, funcao: "Motorista caminhão distribuição", treinamento: "Rotinas Logísticas PTL - Armazém", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 299, funcao: "Motorista caminhão distribuição", treinamento: "Reforçar sobre Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 300, funcao: "Motorista caminhão distribuição", treinamento: "Rotinas de Frota / Manutenção", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 301, funcao: "Motorista caminhão distribuição", treinamento: "Qualidade na Entrega", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 302, funcao: "Motorista caminhão distribuição", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 303, funcao: "Motorista caminhão distribuição", treinamento: "Rotas Críticas", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 304, funcao: "Motorista caminhão distribuição", treinamento: "Vídeos Treinamento para Operadores (OT)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 305, funcao: "Motorista caminhão distribuição", treinamento: "Rotinas de Apoio", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 306, funcao: "Motorista caminhão distribuição", treinamento: "Bate papo com Gerente", duracao: 0.5, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 307, funcao: "Motorista caminhão distribuição", treinamento: "Formatura", duracao: 0.67, responsavel: "ANIELLY", tipo: "Individual" },
+    { id: 308, funcao: "Coordenador e supervisor de Frota", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 309, funcao: "Coordenador e supervisor de Frota", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 310, funcao: "Coordenador e supervisor de Frota", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 311, funcao: "Coordenador e supervisor de Frota", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 312, funcao: "Coordenador e supervisor de Frota", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 313, funcao: "Coordenador e supervisor de Frota", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 314, funcao: "Coordenador e supervisor de Frota", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 315, funcao: "Coordenador e supervisor de Frota", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 316, funcao: "Coordenador e supervisor de Frota", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 317, funcao: "Coordenador e supervisor de Frota", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 318, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 3, responsavel: "N/A", tipo: "Individual" },
+    { id: 319, funcao: "Coordenador e supervisor de Frota", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 320, funcao: "Coordenador e supervisor de Frota", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 321, funcao: "Coordenador e supervisor de Frota", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 322, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas de Gestão", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 323, funcao: "Coordenador e supervisor de Frota", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 324, funcao: "Coordenador e supervisor de Frota", treinamento: "Pilar Frota DPO", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 325, funcao: "Coordenador e supervisor de Frota", treinamento: "Prestação de contas física e financeira", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 326, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas de Armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 327, funcao: "Coordenador e supervisor de Frota", treinamento: "Elétrica e Mecânica Básica", duracao: 1.5, responsavel: "TERCEIRO", tipo: "Individual" },
+    { id: 328, funcao: "Coordenador e supervisor de Frota", treinamento: "5S e Comportamento Seguro na Oficina", duracao: 1, responsavel: "MECANICO/FROTA", tipo: "Individual" },
+    { id: 329, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotina de Rota", duracao: 2.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 330, funcao: "Coordenador e supervisor de Frota", treinamento: "Direção Econômica e Defensiva Teórico", duracao: 3.17, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 331, funcao: "Coordenador e supervisor de Frota", treinamento: "Pacote de Remuneração", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 332, funcao: "Coordenador e supervisor de Frota", treinamento: "Direção Econômica e Defensiva Prático", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 333, funcao: "Coordenador e supervisor de Frota", treinamento: "Gestão de Frota", duracao: 2, responsavel: "FROTA", tipo: "Individual" },
+    { id: 334, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 335, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 336, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 337, funcao: "Coordenador e supervisor de Frota", treinamento: "Planejamento Etratégico do Operador", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 338, funcao: "Coordenador e supervisor de Frota", treinamento: "Gestão de consumo e pneus", duracao: 1, responsavel: "FROTA", tipo: "Individual" },
+    { id: 339, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas de Supervisão", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 340, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas de Liderança / Gente", duracao: 4.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 341, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas Administrativas", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 342, funcao: "Coordenador e supervisor de Frota", treinamento: "Rotinas Financeiras", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 343, funcao: "Manobrista", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 344, funcao: "Manobrista", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 345, funcao: "Manobrista", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 346, funcao: "Manobrista", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 347, funcao: "Manobrista", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 348, funcao: "Manobrista", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 349, funcao: "Manobrista", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 350, funcao: "Manobrista", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 351, funcao: "Manobrista", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 352, funcao: "Manobrista", treinamento: "Treinamento PDV Simulado / Qualidade Atendimento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 353, funcao: "Manobrista", treinamento: "Rotinas Logísticas OCP - Armazém", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 354, funcao: "Manobrista", treinamento: "Check de Retenção", duracao: 0.67, responsavel: "FERNANDA", tipo: "Individual" },
+    { id: 355, funcao: "Manobrista", treinamento: "Direção Econômica e Defensiva Teórico", duracao: 3.17, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 356, funcao: "Manobrista", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 357, funcao: "Manobrista", treinamento: "Direção Econômica e Defensiva Prático", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 358, funcao: "Manobrista", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 359, funcao: "Manobrista", treinamento: "Direção Defensiva Prático Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 360, funcao: "Manobrista", treinamento: "Reforçar assuntos de Gente", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 361, funcao: "Manobrista", treinamento: "Reforçar sobre 5S", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 362, funcao: "Manobrista", treinamento: "Rotinas Logísticas PTL - Armazém", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 363, funcao: "Manobrista", treinamento: "Reforçar sobre Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 364, funcao: "Manobrista", treinamento: "Rotinas de Frota / Manutenção", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 365, funcao: "Manobrista", treinamento: "Qualidade na Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 366, funcao: "Manobrista", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 367, funcao: "Manobrista", treinamento: "Vídeos DPO para Operadores", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 368, funcao: "Manobrista", treinamento: "Rotinas de Apoio", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 369, funcao: "Coordenador e supervisor de Gente", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 370, funcao: "Coordenador e supervisor de Gente", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 371, funcao: "Coordenador e supervisor de Gente", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 372, funcao: "Coordenador e supervisor de Gente", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 373, funcao: "Coordenador e supervisor de Gente", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 374, funcao: "Coordenador e supervisor de Gente", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 375, funcao: "Coordenador e supervisor de Gente", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 376, funcao: "Coordenador e supervisor de Gente", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 377, funcao: "Coordenador e supervisor de Gente", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 378, funcao: "Coordenador e supervisor de Gente", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 379, funcao: "Coordenador e supervisor de Gente", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 380, funcao: "Coordenador e supervisor de Gente", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 381, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotina de Rota", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 382, funcao: "Coordenador e supervisor de Gente", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 383, funcao: "Coordenador e supervisor de Gente", treinamento: "Prestação de contas física e financeira", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 384, funcao: "Coordenador e supervisor de Gente", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 385, funcao: "Coordenador e supervisor de Gente", treinamento: "Telemetria/Prontuário do Condutor", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 386, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 387, funcao: "Coordenador e supervisor de Gente", treinamento: "Pacote de Remuneração", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 388, funcao: "Coordenador e supervisor de Gente", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 389, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 390, funcao: "Coordenador e supervisor de Gente", treinamento: "TMT / TAF", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 391, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas de Monitoramento", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 392, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas de Manutenção", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 393, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 394, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas de Liderança", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 395, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas de Gestão", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 396, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas Administrativas", duracao: 3.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 397, funcao: "Coordenador e supervisor de Gente", treinamento: "Rotinas Gente", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 398, funcao: "Coordenador e supervisor de operações", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 399, funcao: "Coordenador e supervisor de Operações", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 400, funcao: "Coordenador e supervisor de Operações", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 401, funcao: "Coordenador e supervisor de Operações", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 402, funcao: "Coordenador e supervisor de Operações", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 403, funcao: "Coordenador e supervisor de Operações", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 404, funcao: "Coordenador e supervisor de Operações", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 405, funcao: "Coordenador e supervisor de Operações", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 406, funcao: "Coordenador e supervisor de Operações", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 407, funcao: "Coordenador e supervisor de Operações", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 408, funcao: "Coordenador e supervisor de Operações", treinamento: "Qualidade na Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 409, funcao: "Coordenador e supervisor de Operações", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 410, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 3, responsavel: "N/A", tipo: "Individual" },
+    { id: 411, funcao: "Coordenador e supervisor de Operações", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 412, funcao: "Coordenador e supervisor de Operações", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 413, funcao: "Coordenador e supervisor de Operações", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 414, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotina de Rota", duracao: 3.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 415, funcao: "Coordenador e supervisor de Operações", treinamento: "Prestação de contas física e financeira", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 416, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 417, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 418, funcao: "Coordenador e supervisor de Operações", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 419, funcao: "Coordenador e supervisor de Operações", treinamento: "Tracking / Fox Trot", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 420, funcao: "Coordenador e supervisor de Operações", treinamento: "Pacote de Remuneração (Reforço)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 421, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas Financeiras", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 422, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas Administrativas", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 423, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas de Gestão", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 424, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 425, funcao: "Coordenador e supervisor de Operações", treinamento: "Rotinas de Liderança / Gente", duracao: 4.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 426, funcao: "Coordenador e supervisor de Operações", treinamento: "Acompanhamento Equipe", duracao: 2.5, responsavel: "PADRINHO", tipo: "Individual" },
+    { id: 427, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 428, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 429, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 430, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 431, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 432, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 433, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 434, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 435, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 436, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 437, funcao: "Coordenador e supervisor de Financeiro", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 438, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas Administrativas", duracao: 3.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 439, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas Administrativas (Continuação)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 440, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas Financeiras (aplicáveis conforme função)", duracao: 13, responsavel: "N/A", tipo: "Individual" },
+    { id: 441, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 442, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 443, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotina de Rota", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 444, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 445, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1.83, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 446, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Prestação de contas física e financeira", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 447, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 448, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Pacote de Remuneração", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 449, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 450, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas de Monitoramento", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 451, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas de Manutenção", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 452, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas de Portaria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 453, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Treinamento de Inventário", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 454, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas de Gestão", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 455, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas de Liderança", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 456, funcao: "Coordenador e supervisor de Financeiro", treinamento: "Rotinas Gente", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 457, funcao: "Líder de execução", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 458, funcao: "Líder de execução", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 459, funcao: "Líder de execução", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 460, funcao: "Líder de execução", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 461, funcao: "Líder de execução", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 462, funcao: "Líder de execução", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 463, funcao: "Líder de execução", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 464, funcao: "Líder de execução", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 465, funcao: "Líder de execução", treinamento: "Treinamento Direção Econômica e Defensiva Teórico", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 466, funcao: "Líder de execução", treinamento: "Direção Econômica e Defensiva Prático", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 467, funcao: "Líder de execução", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 468, funcao: "Líder de execução", treinamento: "SPO Vendas - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 469, funcao: "Líder de execução", treinamento: "Rotinas de Vendas", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 470, funcao: "Líder de execução", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 471, funcao: "Líder de execução", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 472, funcao: "Líder de execução", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 473, funcao: "Líder de execução", treinamento: "Procedimentos de Entrega", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 474, funcao: "Líder de execução", treinamento: "Rotinas Logística", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 475, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 476, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 477, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 478, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 479, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 480, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 481, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 482, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 483, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 484, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Rota", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 485, funcao: "Coordenador e Supervisor de Armazém", treinamento: "OCP/PTL", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 486, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Armazém", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 487, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Controle", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 488, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 489, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 490, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Prestação de contas física", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 491, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 492, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Treinamento de Rastreador (puxada)", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 493, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Gente e Gestão / DP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 494, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Manutenção", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 495, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas Supervisão", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 496, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas Financeira", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 497, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas Administrativas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 498, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 499, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Vendas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 500, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 501, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Rotina de Gestão da Revenda", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 502, funcao: "Coordenador e Supervisor de Armazém", treinamento: "Liderança (Específico para (gerentes,)", duracao: 2, responsavel: "EXTERNO", tipo: "Individual" },
+    { id: 503, funcao: "Gerente", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 504, funcao: "Gerente", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 505, funcao: "Gerente", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 506, funcao: "Gerente", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 507, funcao: "Gerente", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 508, funcao: "Gerente", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 509, funcao: "Gerente", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 510, funcao: "Gerente", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 511, funcao: "Gerente", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 512, funcao: "Gerente", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 513, funcao: "Gerente", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 514, funcao: "Gerente", treinamento: "Rotinas Administrativas", duracao: 3.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 515, funcao: "Gerente", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 516, funcao: "Gerente", treinamento: "Rotina de Rota", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 517, funcao: "Gerente", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 518, funcao: "Gerente", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 519, funcao: "Gerente", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 520, funcao: "Gerente", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 521, funcao: "Gerente", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 522, funcao: "Gerente", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 523, funcao: "Gerente", treinamento: "Pacote de Remuneração", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 524, funcao: "Gerente", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 525, funcao: "Gerente", treinamento: "Treinamento de Rastreador", duracao: 1.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 526, funcao: "Gerente", treinamento: "TMT / TAF", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 527, funcao: "Gerente", treinamento: "Rotinas de Monitoramento", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 528, funcao: "Gerente", treinamento: "Rotinas de Manutenção", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 529, funcao: "Gerente", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 530, funcao: "Gerente", treinamento: "Rotinas de Gestão", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 531, funcao: "Gerente", treinamento: "Rotinas de Liderança", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 532, funcao: "Gerente", treinamento: "Rotinas Gente", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 533, funcao: "Gerente", treinamento: "Rotinas específicas da área", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 534, funcao: "Frentista", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 535, funcao: "Frentista", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 536, funcao: "Frentista", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 537, funcao: "Frentista", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 538, funcao: "Frentista", treinamento: "Visita às instalações da unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 539, funcao: "Frentista", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 540, funcao: "Frentista", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 541, funcao: "Frentista", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 542, funcao: "Frentista", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 543, funcao: "Frentista", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 544, funcao: "Frentista", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 545, funcao: "Frentista", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 546, funcao: "Frentista", treinamento: "Rotinas de Portaria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 547, funcao: "Frentista", treinamento: "Elétrica e Mecânica Básica", duracao: 1.5, responsavel: "TERCEIRO", tipo: "Individual" },
+    { id: 548, funcao: "Frentista", treinamento: "Pilar Frota DPO", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 549, funcao: "Frentista", treinamento: "Checklist", duracao: 1.5, responsavel: "FROTA", tipo: "Individual" },
+    { id: 550, funcao: "Frentista", treinamento: "Treinamento de Inventário", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 551, funcao: "Frentista", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 552, funcao: "Frentista", treinamento: "Rotina de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 553, funcao: "Frentista", treinamento: "Rotinas de Monitoramento", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 554, funcao: "Frentista", treinamento: "Rotina de Rota", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 555, funcao: "Frentista", treinamento: "Gestão de consumo", duracao: 1, responsavel: "FROTA", tipo: "Individual" },
+    { id: 556, funcao: "Frentista", treinamento: "Conhecendo os equipamentos", duracao: 1, responsavel: "FROTA", tipo: "Individual" },
+    { id: 557, funcao: "Frentista", treinamento: "Rotina Abastecimento de Veículos/Equipamentos", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 558, funcao: "Frentista", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 559, funcao: "Frentista", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 560, funcao: "Frentista", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 561, funcao: "Frentista", treinamento: "Rotinas de Puxada", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 562, funcao: "Frentista", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 563, funcao: "Frentista", treinamento: "Pacote de Remuneração", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 564, funcao: "Frentista", treinamento: "NR 20", duracao: 4, responsavel: "TEC.SEGURANÇA", tipo: "Individual" },
+    { id: 565, funcao: "Frentista", treinamento: "Direção Econômica e Defensiva Teórico", duracao: 3.17, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 566, funcao: "Aprendiz e Estagiario", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 567, funcao: "Aprendiz e Estagiario", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 568, funcao: "Aprendiz e Estagiario", treinamento: "Boas-vindas da Gerência", duracao: 1, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 569, funcao: "Aprendiz e Estagiario", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 570, funcao: "Aprendiz e Estagiario", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 571, funcao: "Aprendiz e Estagiario", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 572, funcao: "Aprendiz e Estagiario", treinamento: "Programa 5S", duracao: 0.5, responsavel: "N/A", tipo: "Grupo" },
+    { id: 573, funcao: "Aprendiz e Estagiario", treinamento: "Vídeos de Segurança", duracao: 2.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 574, funcao: "Aprendiz e Estagiario", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 575, funcao: "Aprendiz e Estagiario", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 576, funcao: "Aprendiz e Estagiario", treinamento: "Procedimentos de Entrega", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 577, funcao: "Aprendiz e Estagiario", treinamento: "Rotina de Rota", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 578, funcao: "Aprendiz e Estagiario", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 579, funcao: "Aprendiz e Estagiario", treinamento: "Rotinas de Manutenção", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 580, funcao: "Aprendiz e Estagiario", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 581, funcao: "Aprendiz e Estagiario", treinamento: "Rotinas da área", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 582, funcao: "Conferente", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 583, funcao: "Conferente", treinamento: "Team room", duracao: 0.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 584, funcao: "Conferente", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 585, funcao: "Conferente", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 586, funcao: "Conferente", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 587, funcao: "Conferente", treinamento: "Visita às instalações da unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 588, funcao: "Conferente", treinamento: "Fluxo interno da Operação", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 589, funcao: "Conferente", treinamento: "Vídeos DPO para Operadores (OT)", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 590, funcao: "Conferente", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 591, funcao: "Conferente", treinamento: "Programa 5S", duracao: 0.5, responsavel: "N/A", tipo: "Grupo" },
+    { id: 592, funcao: "Conferente", treinamento: "Rotinas Logísticas OCP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 593, funcao: "Conferente", treinamento: "Rotinas Logísticas PTL", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 594, funcao: "Conferente", treinamento: "Carga e descarga", duracao: 1, responsavel: "SD", tipo: "Individual" },
+    { id: 595, funcao: "Conferente", treinamento: "Indicadores da área", duracao: 1, responsavel: "AREA", tipo: "Individual" },
+    { id: 596, funcao: "Conferente", treinamento: "Fluxo de Repack", duracao: 1.17, responsavel: "AREA", tipo: "Individual" },
+    { id: 597, funcao: "Conferente", treinamento: "Picking", duracao: 1.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 598, funcao: "Conferente", treinamento: "Rotina de carga", duracao: 6, responsavel: "N/A", tipo: "Individual" },
+    { id: 599, funcao: "Conferente", treinamento: "Manuseio e movimentação manual", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Individual" },
+    { id: 600, funcao: "Conferente", treinamento: "Armazém simulado", duracao: 2, responsavel: "MENTOR DO TURNO", tipo: "Individual" },
+    { id: 601, funcao: "Conferente", treinamento: "Prática Assistida", duracao: 7, responsavel: "N/A", tipo: "Individual" },
+    { id: 602, funcao: "Conferente", treinamento: "Reforço assuntos de Gente", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 603, funcao: "Conferente", treinamento: "Reforço sobre 5S", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 604, funcao: "Conferente", treinamento: "Reforço Rotinas Logísticas OCP", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 605, funcao: "Conferente", treinamento: "Reforço sobre Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 606, funcao: "Conferente", treinamento: "Reforço sobre fluxo interno", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 607, funcao: "Conferente", treinamento: "WMS (quando aplicável)", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 608, funcao: "Conferente", treinamento: "Bate papo com Padrinho (a)", duracao: 0.33, responsavel: "PADRINHO", tipo: "Individual" },
+    { id: 609, funcao: "Conferente", treinamento: "Check de Retenção", duracao: 0.67, responsavel: "FERNANDA", tipo: "Individual" },
+    { id: 610, funcao: "Conferente", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 611, funcao: "Conferente", treinamento: "Team room", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 612, funcao: "Conferente", treinamento: "Reforço Rotinas Logísticas PTL", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 613, funcao: "Conferente", treinamento: "Reforço sobre Indicadores", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 614, funcao: "Conferente", treinamento: "Rotina de amarração", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 615, funcao: "Conferente", treinamento: "Reforço sobre carga e descarga", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 616, funcao: "Conferente", treinamento: "Rotinas de armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 617, funcao: "Conferente", treinamento: "Inventário", duracao: 1, responsavel: "CONTROLE", tipo: "Individual" },
+    { id: 618, funcao: "Conferente", treinamento: "Bate papo com Gerente", duracao: 0.5, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 619, funcao: "Conferente", treinamento: "Formatura", duracao: 0.67, responsavel: "ANIELLY", tipo: "Individual" },
+    { id: 620, funcao: "Analista e Técnico de Controle", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 621, funcao: "Analista e Técnico de Controle", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 622, funcao: "Analista e Técnico de Controle", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 623, funcao: "Analista e Técnico de Controle", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 624, funcao: "Analista e Técnico de Controle", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 625, funcao: "Analista e Técnico de Controle", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 626, funcao: "Analista e Técnico de Controle", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 627, funcao: "Analista e Técnico de Controle", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 628, funcao: "Analista e Técnico de Controle", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 629, funcao: "Analista e Técnico de Controle", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 630, funcao: "Analista e Técnico de Controle", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 631, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas de Controle", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 632, funcao: "Analista e Técnico de Controle", treinamento: "OCP/PTL", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 633, funcao: "Analista e Técnico de Controle", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 634, funcao: "Analista e Técnico de Controle", treinamento: "Rotina Financeiras", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 635, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas Administrativas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 636, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas de Monitoramento", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 637, funcao: "Analista e Técnico de Controle", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 638, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 639, funcao: "Analista e Técnico de Controle", treinamento: "Treinamento de Rastreador (puxada)", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 640, funcao: "Analista e Técnico de Controle", treinamento: "Rotina de Gestão da Revenda", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 641, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas de Supervisão", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 642, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas de Manutenção", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 643, funcao: "Analista e Técnico de Controle", treinamento: "Rotina de Armazém", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 644, funcao: "Analista e Técnico de Controle", treinamento: "Prestação de contas física e", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 645, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas de Gente e Gestão / DP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 646, funcao: "Analista e Técnico de Controle", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 647, funcao: "Cadastrador", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 648, funcao: "Cadastrador", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 649, funcao: "Cadastrador", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 650, funcao: "Cadastrador", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 651, funcao: "Cadastrador", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 652, funcao: "Cadastrador", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 653, funcao: "Cadastrador", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 654, funcao: "Cadastrador", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 655, funcao: "Cadastrador", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 656, funcao: "Cadastrador", treinamento: "Treinamento Direção Econômica e Defensiva", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 657, funcao: "Cadastrador", treinamento: "Direção Econômica e Defensiva", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 658, funcao: "Cadastrador", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 659, funcao: "Cadastrador", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 660, funcao: "Cadastrador", treinamento: "Rotinas de Cadastro", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 661, funcao: "Cadastrador", treinamento: "Rotina Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 662, funcao: "Cadastrador", treinamento: "Rotina de Gestão da Revenda", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 663, funcao: "Cadastrador", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 664, funcao: "Cadastrador", treinamento: "Rotina de Armazém", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 665, funcao: "Cadastrador", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 666, funcao: "Auxiliar de serviços gerais", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 667, funcao: "Auxiliar de serviços gerais", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 668, funcao: "Auxiliar de serviços gerais", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 669, funcao: "Auxiliar de serviços gerais", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.83, responsavel: "N/A", tipo: "Grupo" },
+    { id: 670, funcao: "Auxiliar de serviços gerais", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 671, funcao: "Auxiliar de serviços gerais", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 672, funcao: "Auxiliar de serviços gerais", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 673, funcao: "Auxiliar de serviços gerais", treinamento: "Comitê de Gente", duracao: 0.67, responsavel: "DAIANE", tipo: "Individual" },
+    { id: 674, funcao: "Auxiliar de serviços gerais", treinamento: "Vídeos de Segurança", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 675, funcao: "Auxiliar de serviços gerais", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 1.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 676, funcao: "Auxiliar de serviços gerais", treinamento: "Rotinas Administrativas", duracao: 2.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 677, funcao: "Auxiliar de serviços gerais", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 678, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 679, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 680, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 681, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 682, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 683, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 684, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 685, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 686, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 687, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 688, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 689, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas Rota", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 690, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "OCP/PTL", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 691, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 692, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotina Financeiras", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 693, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas Administrativas", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 694, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas de Monitoramento", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 695, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas de Gente e Gestão / DP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 696, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 697, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 698, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Treinamento de Rastreador (puxada)", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 699, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotina de Gestão da Revenda", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 700, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas de Supervisão", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 701, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotinas de Manutenção", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 702, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Rotina de Armazém", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 703, funcao: "Analista, Assistente e Auxiliar de Rota", treinamento: "Prestação de contas física e financeira", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 704, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 705, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 706, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 707, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 708, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 709, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 710, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 711, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 712, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 713, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 714, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "SPO Vendas - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 715, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 716, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas APR", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 717, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "ROTA Nº 02", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 718, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 719, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas Logística", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 720, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 721, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas de Manutenção", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 722, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas Administrativas", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 723, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 724, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas de Puxada", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 725, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Treinamento de Rastreador (puxada)", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 726, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotina Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 727, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Prestação de contas física", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 728, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas de Supervisão", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 729, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas de Gente e Gestão / DP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 730, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 731, funcao: "Analista, Técnico, Assistente e Auxiliar de Vendas e APR", treinamento: "Rotina de Gestão da Revenda", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 732, funcao: "Monitoramento", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 733, funcao: "Monitoramento", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 734, funcao: "Monitoramento", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 735, funcao: "Monitoramento", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 736, funcao: "Monitoramento", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 737, funcao: "Monitoramento", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 738, funcao: "Monitoramento", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 739, funcao: "Monitoramento", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 740, funcao: "Monitoramento", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 741, funcao: "Monitoramento", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 742, funcao: "Monitoramento", treinamento: "Rotina de Rota", duracao: 3.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 743, funcao: "Monitoramento", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 744, funcao: "Monitoramento", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 745, funcao: "Monitoramento", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 3, responsavel: "N/A", tipo: "Individual" },
+    { id: 746, funcao: "Monitoramento", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 747, funcao: "Monitoramento", treinamento: "Pacote de Remuneração (Reforço)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 748, funcao: "Monitoramento", treinamento: "Prestação de contas física e financeira", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 749, funcao: "Monitoramento", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 750, funcao: "Monitoramento", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 751, funcao: "Monitoramento", treinamento: "Rotinas de Monitoramento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 752, funcao: "Monitoramento", treinamento: "Rotinas de Gente", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 753, funcao: "Monitoramento", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 754, funcao: "Monitoramento", treinamento: "Rotinas de Manutenção", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 755, funcao: "Operações", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 756, funcao: "Operações", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 757, funcao: "Operações", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 758, funcao: "Operações", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 759, funcao: "Operações", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 760, funcao: "Operações", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 761, funcao: "Operações", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 762, funcao: "Operações", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 763, funcao: "Operações", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 764, funcao: "Operações", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 765, funcao: "Operações", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 766, funcao: "Operações", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 767, funcao: "Operações", treinamento: "Rotinas Administrativas (Continuação)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 768, funcao: "Operações", treinamento: "Rotina de Rota", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 769, funcao: "Operações", treinamento: "Rotinas de Portaria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 770, funcao: "Operações", treinamento: "Treinamento de Inventário", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 771, funcao: "Operações", treinamento: "Prestação de contas física e financeira", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 772, funcao: "Operações", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 773, funcao: "Operações", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 774, funcao: "Operações", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 775, funcao: "Operações", treinamento: "Pacote de Remuneração", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 776, funcao: "Operações", treinamento: "Rotinas de Puxada", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 777, funcao: "Operações", treinamento: "Rotinas de Gestão", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 778, funcao: "Operações", treinamento: "Treinamento de Rastreador", duracao: 1.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 779, funcao: "Operações", treinamento: "Rotinas de Monitoramento", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 780, funcao: "Operações", treinamento: "Rotinas de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 781, funcao: "Operações", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 782, funcao: "Operações", treinamento: "Rotinas de Gente", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 783, funcao: "Operações", treinamento: "Rotinas específicas da área", duracao: 5.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 784, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 785, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 786, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 787, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 788, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 789, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 790, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 791, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 792, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 793, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Treinamento Direção Econômica e Defensiva", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 794, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Direção Econômica e Defensiva", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 795, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "ROTA Nº 01", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 796, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "ROTA Nº 02", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 797, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "ROTA Nº 03", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 798, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "ROTA Nº 04", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 799, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 800, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "SPO Marketing - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 801, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Fluxo interno Revenda", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 802, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 803, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Rotinas de Gestão da Revenda", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 804, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Rotinas de Armazém", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 805, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 806, funcao: "Analista, Assistente e Auxiliar de Marketing e Execução", treinamento: "Rotinas de Marketing", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 807, funcao: "Ajudante de armazém", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 808, funcao: "Ajudante de armazém", treinamento: "Team room", duracao: 0.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 809, funcao: "Ajudante de armazém", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 810, funcao: "Ajudante de armazém", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 811, funcao: "Ajudante de armazém", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 812, funcao: "Ajudante de armazém", treinamento: "Visita às instalações da unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 813, funcao: "Ajudante de armazém", treinamento: "Fluxo interno da Operação", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 814, funcao: "Ajudante de armazém", treinamento: "Vídeos Treinamento para Operadores (OT)", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 815, funcao: "Ajudante de armazém", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 816, funcao: "Ajudante de armazém", treinamento: "Programa 5S", duracao: 0.5, responsavel: "N/A", tipo: "Grupo" },
+    { id: 817, funcao: "Ajudante de armazém", treinamento: "Rotinas Logísticas OCP", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 818, funcao: "Ajudante de armazém", treinamento: "Rotinas Logísticas PTL", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 819, funcao: "Ajudante de armazém", treinamento: "Carga e descarga", duracao: 1, responsavel: "SD", tipo: "Individual" },
+    { id: 820, funcao: "Ajudante de armazém", treinamento: "Indicadores da área", duracao: 1, responsavel: "AREA", tipo: "Individual" },
+    { id: 821, funcao: "Ajudante de armazém", treinamento: "Fluxo de Repack", duracao: 1.17, responsavel: "AREA", tipo: "Individual" },
+    { id: 822, funcao: "Ajudante de armazém", treinamento: "Picking", duracao: 1.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 823, funcao: "Ajudante de armazém", treinamento: "Rotina de carga", duracao: 6, responsavel: "N/A", tipo: "Individual" },
+    { id: 824, funcao: "Ajudante de armazém", treinamento: "Manuseio e movimentação manual", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Individual" },
+    { id: 825, funcao: "Ajudante de armazém", treinamento: "Armazém simulado", duracao: 2, responsavel: "MENTOR DO TURNO", tipo: "Individual" },
+    { id: 826, funcao: "Ajudante de armazém", treinamento: "Prática Assistida", duracao: 7, responsavel: "N/A", tipo: "Individual" },
+    { id: 827, funcao: "Ajudante de armazém", treinamento: "Reforço assuntos de Gente", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 828, funcao: "Ajudante de armazém", treinamento: "Reforço sobre 5S", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 829, funcao: "Ajudante de armazém", treinamento: "Reforço Rotinas Logísticas OCP", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 830, funcao: "Ajudante de armazém", treinamento: "Reforço Rotinas Logísticas PTL", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 831, funcao: "Ajudante de armazém", treinamento: "Reforço sobre Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 832, funcao: "Ajudante de armazém", treinamento: "Reforço sobre fluxo interno", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 833, funcao: "Ajudante de armazém", treinamento: "WMS (quando aplicável)", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 834, funcao: "Ajudante de armazém", treinamento: "Bate papo com Padrinho (a)", duracao: 0.33, responsavel: "PADRINHO", tipo: "Individual" },
+    { id: 835, funcao: "Ajudante de armazém", treinamento: "Check de Retenção", duracao: 0.67, responsavel: "FERNANDA", tipo: "Individual" },
+    { id: 836, funcao: "Ajudante de armazém", treinamento: "Introdução SKAP", duracao: 0.67, responsavel: "COD", tipo: "Individual" },
+    { id: 837, funcao: "Ajudante de armazém", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 838, funcao: "Ajudante de armazém", treinamento: "Team room", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 839, funcao: "Ajudante de armazém", treinamento: "Reforço sobre Indicadores", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 840, funcao: "Ajudante de armazém", treinamento: "Rotina de amarração", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 841, funcao: "Ajudante de armazém", treinamento: "Reforço sobre carga e descarga", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 842, funcao: "Ajudante de armazém", treinamento: "Rotinas de armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 843, funcao: "Ajudante de armazém", treinamento: "Inventário", duracao: 1, responsavel: "CONTROLE", tipo: "Individual" },
+    { id: 844, funcao: "Ajudante de armazém", treinamento: "Bate papo com Gerente", duracao: 0.5, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 845, funcao: "Ajudante de armazém", treinamento: "Bate papo com Responsável Ambev pela unidade", duracao: 0.5, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 846, funcao: "Ajudante de armazém", treinamento: "Formatura", duracao: 0.67, responsavel: "ANIELLY", tipo: "Individual" },
+    { id: 847, funcao: "Ajudante de Distribuição", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 848, funcao: "Ajudante de Distribuição", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 849, funcao: "Ajudante de Distribuição", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 850, funcao: "Ajudante de Distribuição", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 851, funcao: "Ajudante de Distribuição", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 852, funcao: "Ajudante de Distribuição", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 853, funcao: "Ajudante de Distribuição", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 854, funcao: "Ajudante de Distribuição", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 855, funcao: "Ajudante de Distribuição", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 856, funcao: "Ajudante de Distribuição", treinamento: "Visita à Reunião Matinal", duracao: 0.17, responsavel: "ENTREGA", tipo: "Individual" },
+    { id: 857, funcao: "Ajudante de Distribuição", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 858, funcao: "Ajudante de Distribuição", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 859, funcao: "Ajudante de Distribuição", treinamento: "Treinamento PDV Simulado / Qualidade Atendimento", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 860, funcao: "Ajudante de Distribuição", treinamento: "Rotinas Logísticas OCP - Armazém", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 861, funcao: "Ajudante de Distribuição", treinamento: "Check de Retenção", duracao: 0.67, responsavel: "FERNANDA", tipo: "Individual" },
+    { id: 862, funcao: "Ajudante de Distribuição", treinamento: "Acompanhamento GSD", duracao: 3, responsavel: "SD", tipo: "Individual" },
+    { id: 863, funcao: "Ajudante de Distribuição", treinamento: "Bate papo com Padrinho (a)", duracao: 0.33, responsavel: "PADRINHO", tipo: "Individual" },
+    { id: 864, funcao: "Ajudante de Distribuição", treinamento: "Acompanhamento Entrega", duracao: 3.67, responsavel: "SD", tipo: "Individual" },
+    { id: 865, funcao: "Ajudante de Distribuição", treinamento: "Reforçar assuntos de Gente", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 866, funcao: "Ajudante de Distribuição", treinamento: "Reforçar sobre 5S", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 867, funcao: "Ajudante de Distribuição", treinamento: "Reforçar sobre Entrega", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 868, funcao: "Ajudante de Distribuição", treinamento: "Rotinas Logísticas PTL - Armazém", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 869, funcao: "Ajudante de Distribuição", treinamento: "Reforçar sobre Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 870, funcao: "Ajudante de Distribuição", treinamento: "Rotinas de Frota / Manutenção", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 871, funcao: "Ajudante de Distribuição", treinamento: "Qualidade na Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 872, funcao: "Ajudante de Distribuição", treinamento: "Diversidade e Inclusão", duracao: 0.67, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 873, funcao: "Ajudante de Distribuição", treinamento: "Rotas Críticas", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 874, funcao: "Ajudante de Distribuição", treinamento: "Vídeos DPO para Operadores (OT)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 875, funcao: "Ajudante de Distribuição", treinamento: "Rotinas de Apoio", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 876, funcao: "Ajudante de Distribuição", treinamento: "Bate papo com Gerente", duracao: 0.5, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 877, funcao: "Ajudante de Distribuição", treinamento: "Formatura", duracao: 0.67, responsavel: "ANIELLY", tipo: "Individual" },
+    { id: 878, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 879, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 880, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 881, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 882, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 883, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 884, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 885, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 886, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Treinamento Direção Econômica e Defensiva Teórico", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 887, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Direção Econômica e Defensiva Prático", duracao: 4, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 888, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Rotinas de Gestão da Revenda _SPO", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 889, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "SPO Vendas - Blocos", duracao: 4, responsavel: "N/A", tipo: "Individual" },
+    { id: 890, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Rotinas de Vendas", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 891, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 892, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 893, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Rotinas de Marketing", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 894, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Procedimentos de Entrega", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 895, funcao: "Auxiliar Interno Nível de Serviço", treinamento: "Rotinas Logística", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 896, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 897, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.25, responsavel: "N/A", tipo: "Individual" },
+    { id: 898, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Reunião Matinal / Pontapé / Fechamento", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 899, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 900, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 2, responsavel: "N/A", tipo: "Grupo" },
+    { id: 901, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Visita às instalações da Unidade", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 902, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 903, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Fluxo interno da Operação", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 904, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 905, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 906, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotina de Rota", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 907, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Procedimentos de Entrega", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 908, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 909, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotinas de Liderança", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 910, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotinas de Gestão", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 911, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 0.83, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 912, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Prestação de contas física e financeira", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 913, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 914, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 915, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Telemetria/Prontuário do Condutor", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 916, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 917, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotinas de Puxada", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 918, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotinas de Monitoramento", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 919, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotinas de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 920, funcao: "Analista, Tecnico, Assistente e Auxiliar de Gente", treinamento: "Rotinas Gente", duracao: 8, responsavel: "N/A", tipo: "Individual" },
+    { id: 921, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 922, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 923, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 924, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 925, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 926, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 927, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 928, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 929, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 930, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 931, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 932, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas Administrativas", duracao: 3.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 933, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 934, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas Administrativas (Continuação)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 935, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas Financeiras (aplicáveis conforme função)", duracao: 10.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 936, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas de Portaria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 937, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Treinamento de Inventário", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 938, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 939, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 940, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotina de Rota", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 941, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1.33, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 942, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Prestação de contas física e financeira", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 943, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 944, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Pacote de Remuneração", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 945, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas de Puxada", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 946, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas de Monitoramento", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 947, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 948, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas de Gestão", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 949, funcao: "Analista, Tecnico, Assistente e Auxiliar de Financeiro", treinamento: "Rotinas de Gente", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 950, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Boas-vindas da Gerência", duracao: 0.5, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 951, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Programa 5S", duracao: 0.25, responsavel: "N/A", tipo: "Grupo" },
+    { id: 952, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Pacote de Remuneração e Normas Disciplinares", duracao: 0.67, responsavel: "N/A", tipo: "Grupo" },
+    { id: 953, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Normas de Segurança", duracao: 2, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 954, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Visita às instalações da Unidade", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 955, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Fluxo interno da Operação", duracao: 0.5, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 956, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 957, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Procedimentos de Entrega", duracao: 1.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 958, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Bate papo com Gerente", duracao: 0.33, responsavel: "GERENTE DA AREA", tipo: "Individual" },
+    { id: 959, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Vídeos de Segurança", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 960, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "DPO/SPO - Visão Geral / Programa de Excelência", duracao: 2, responsavel: "GERENTES", tipo: "Grupo" },
+    { id: 961, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas Logística (OCP/PTL) / Armazém", duracao: 2.33, responsavel: "N/A", tipo: "Individual" },
+    { id: 962, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Elétrica e Mecânica Básica", duracao: 1.5, responsavel: "TERCEIRO", tipo: "Individual" },
+    { id: 963, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Diversidade e Inclusão", duracao: 0.5, responsavel: "FERNANDA", tipo: "Grupo" },
+    { id: 964, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas Administrativas (Continuação)", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 965, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotina de Rota", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 966, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Procedimentos de Entrega", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 967, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas de Portaria", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 968, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Treinamento de Inventário", duracao: 0.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 969, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Normas e Gerenciamento de Risco (Quando aplicável)", duracao: 1.83, responsavel: "TEC.SEGURANÇA", tipo: "Grupo" },
+    { id: 970, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Prestação de contas física e financeira", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 971, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Tracking / Fox Trot", duracao: 0.67, responsavel: "N/A", tipo: "Individual" },
+    { id: 972, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Treinamento Prontuário do Condutor/Telemetria", duracao: 0.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 973, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Direção Defensiva Teórico Moto", duracao: 2, responsavel: "INSTRUTOR", tipo: "Individual" },
+    { id: 974, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Visita à Reunião Matinal/Pontapé", duracao: 0.17, responsavel: "N/A", tipo: "Individual" },
+    { id: 975, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas de Armazém", duracao: 1, responsavel: "N/A", tipo: "Individual" },
+    { id: 976, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas de Puxada", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 977, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas de Gestão", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 978, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Treinamento de Rastreador", duracao: 1.83, responsavel: "N/A", tipo: "Individual" },
+    { id: 979, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas de Monitoramento", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 980, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas de Manutenção", duracao: 1.5, responsavel: "N/A", tipo: "Individual" },
+    { id: 981, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas Financeiras", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 982, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas de Gente", duracao: 2, responsavel: "N/A", tipo: "Individual" },
+    { id: 983, funcao: "Analista, Tecnico, Assistente e Auxiliar de Frota", treinamento: "Rotinas específicas da área", duracao: 5.33, responsavel: "N/A", tipo: "Individual" }
+   ]
 
   useEffect(() => {
-    // Carregar treinamentos
     const savedTrainings = localStorage.getItem('trainings');
     if (savedTrainings) {
-      const trainingsData = JSON.parse(savedTrainings);
-      setTrainings(trainingsData);
-      
-      // Extrair posições únicas
-      const positions = [...new Set(trainingsData.map(t => t.funcao))];
-      setAvailablePositions(positions);
-    }
-
-    // Definir semana atual
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 (Sun) - 6 (Sat)
-    const startOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust for Sunday
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() + startOffset);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 4); // Sexta-feira
-    
-    const formatDate = (date) => {
-      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    };
-    
-    setCurrentWeek(`${formatDate(startOfWeek)} a ${formatDate(endOfWeek)}`);
-
-    // Carregar seleções salvas
-    const savedSelections = localStorage.getItem('selectedPositions');
-    if (savedSelections) {
-      setSelectedPositions(JSON.parse(savedSelections));
+      const parsedTrainings = JSON.parse(savedTrainings);
+      setTrainings(parsedTrainings);
+      setFilteredTrainings(parsedTrainings);
+    } else {
+      setTrainings(initialTrainings);
+      setFilteredTrainings(initialTrainings);
+      localStorage.setItem('trainings', JSON.stringify(initialTrainings));
     }
   }, []);
 
-  const handlePositionToggle = (position) => {
-    const newSelections = selectedPositions.includes(position)
-      ? selectedPositions.filter(p => p !== position)
-      : [...selectedPositions, position];
-    
-    setSelectedPositions(newSelections);
-    localStorage.setItem('selectedPositions', JSON.stringify(newSelections));
+  useEffect(() => {
+    const result = trainings.filter(training =>
+      training.funcao.toLowerCase().includes(filter.toLowerCase())
+    );
+    setFilteredTrainings(result);
+  }, [filter, trainings]);
+
+  const saveTrainings = (newTrainings) => {
+    setTrainings(newTrainings);
+    localStorage.setItem('trainings', JSON.stringify(newTrainings));
   };
 
-  const generateSchedule = () => {
-    if (selectedPositions.length === 0) {
-      toast({
-        title: "Atenção",
-        description: "Selecione pelo menos uma função para gerar a agenda",
-        variant: "destructive"
-      });
+  const handleImportCSV = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            delimiter: ";",
+            complete: (results) => {
+                const requiredHeaders = ['Função', 'Treinamento', 'Duração (h)', 'Responsavel', 'Tipo'];
+                const actualHeaders = results.meta.fields;
+
+                const hasAllHeaders = requiredHeaders.every(h => actualHeaders.includes(h));
+
+                if (!hasAllHeaders) {
+                    toast({
+                        title: "Erro de Cabeçalho",
+                        description: `O CSV deve conter as colunas: ${requiredHeaders.join(', ')}`,
+                        variant: "destructive"
+                    });
+                    return;
+                }
+
+                const importedData = results.data.map(row => {
+                    let duracao = 0;
+                    const duracaoStr = (row['Duração (h)'] || '').toString().toLowerCase();
+
+                    if (duracaoStr.includes('dia')) {
+                        duracao = 8;
+                    } else {
+                        const parsed = parseInt(duracaoStr, 10);
+                        if (!isNaN(parsed)) {
+                            // Se for minutos, converte para horas
+                            duracao = parsed > 8 ? parsed / 60 : parsed;
+                        }
+                    }
+
+                    return {
+                        id: Date.now() + Math.random(),
+                        funcao: row.Função,
+                        treinamento: row.Treinamento,
+                        duracao: parseFloat(duracao.toFixed(2)),
+                        responsavel: row.Responsavel || 'N/A',
+                        tipo: row.Tipo === 'TODOS' ? 'Grupo' : (row.Tipo || 'Individual')
+                    };
+                }).filter(t => t.funcao && t.treinamento && t.duracao > 0 && t.responsavel);
+
+                const newTrainings = [...importedData];
+                saveTrainings(newTrainings);
+                toast({
+                    title: "Sucesso!",
+                    description: `${importedData.length} treinamentos importados com sucesso.`
+                });
+            },
+            error: (error) => {
+                toast({
+                    title: "Erro na importação",
+                    description: error.message,
+                    variant: "destructive"
+                });
+            }
+        });
+    }
+};
+
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.funcao || !formData.treinamento || !formData.duracao || !formData.responsavel) {
+      toast({ title: "Erro", description: "Todos os campos são obrigatórios", variant: "destructive" });
       return;
     }
-
-    // Algoritmo de otimização da agenda
-    const selectedTrainings = trainings.filter(t => selectedPositions.includes(t.funcao));
-    
-    // Agrupar treinamentos iguais
-    const groupedTrainings = {};
-    selectedTrainings.forEach(training => {
-      if (training.tipo !== 'Grupo') {
-         const key = `${training.treinamento}-${training.responsavel}-${training.funcao}`;
-         if (!groupedTrainings[key]) {
-            groupedTrainings[key] = { ...training, funcoes: [training.funcao] };
-         }
-         return;
-      }
-
-      const key = `${training.treinamento}-${training.responsavel}`;
-      if (!groupedTrainings[key]) {
-        groupedTrainings[key] = {
-          ...training,
-          funcoes: [training.funcao]
-        };
-      } else {
-        if (!groupedTrainings[key].funcoes.includes(training.funcao)) {
-            groupedTrainings[key].funcoes.push(training.funcao);
-        }
-      }
-    });
-
-    const optimizedSchedule = Object.values(groupedTrainings);
-    
-    // Salvar agenda gerada
-    localStorage.setItem('generatedSchedule', JSON.stringify({
-      week: currentWeek,
-      positions: selectedPositions,
-      schedule: optimizedSchedule,
-      generatedAt: new Date().toISOString()
-    }));
-
-    toast({
-      title: "Sucesso!",
-      description: `Agenda gerada para ${selectedPositions.length} função(ões). Vá para a aba "Agenda Gerada" para visualizar.`
-    });
+    const trainingData = { ...formData, duracao: parseInt(formData.duracao), id: editingTraining ? editingTraining.id : Date.now() };
+    let newTrainings;
+    if (editingTraining) {
+      newTrainings = trainings.map(t => t.id === editingTraining.id ? trainingData : t);
+      toast({ title: "Sucesso!", description: "Treinamento atualizado com sucesso" });
+    } else {
+      newTrainings = [...trainings, trainingData];
+      toast({ title: "Sucesso!", description: "Treinamento cadastrado com sucesso" });
+    }
+    saveTrainings(newTrainings);
+    setIsDialogOpen(false);
+    setEditingTraining(null);
+    setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' });
   };
 
-  const getPositionTrainings = (position) => {
-    return trainings.filter(t => t.funcao === position);
+  const handleEdit = (training) => {
+    setEditingTraining(training);
+    setFormData({ ...training, duracao: training.duracao.toString() });
+    setIsDialogOpen(true);
   };
 
-  const getTotalHours = (position) => {
-    return getPositionTrainings(position).reduce((total, t) => total + t.duracao, 0);
+  const handleDelete = (id) => {
+    const newTrainings = trainings.filter(t => t.id !== id);
+    saveTrainings(newTrainings);
+    toast({ title: "Sucesso!", description: "Treinamento excluído com sucesso" });
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Integrações da Semana</h2>
-          <p className="text-gray-600">Semana de {currentWeek}</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-1">Gestão de Treinamentos</h2>
+          <p className="text-gray-500">Configure os treinamentos obrigatórios para cada função.</p>
         </div>
-        
-        <Button
-          onClick={generateSchedule}
-          disabled={selectedPositions.length === 0}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Play className="w-4 h-4 mr-2" />
-          Gerar Agenda
-        </Button>
+        <div className="flex gap-2">
+          <input type="file" ref={fileInputRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
+          <Button variant="outline" onClick={() => fileInputRef.current.click()}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar CSV
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
+              setIsDialogOpen(isOpen);
+              if (!isOpen) {
+                setEditingTraining(null);
+                setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' });
+              }
+          }}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-white text-gray-900 max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingTraining ? 'Editar Treinamento' : 'Novo Treinamento'}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2"><Label htmlFor="funcao">Função</Label><Input id="funcao" value={formData.funcao} onChange={(e) => setFormData(prev => ({ ...prev, funcao: e.target.value }))} placeholder="Ex: Motorista" /></div>
+                <div className="space-y-2"><Label htmlFor="treinamento">Treinamento</Label><Input id="treinamento" value={formData.treinamento} onChange={(e) => setFormData(prev => ({ ...prev, treinamento: e.target.value }))} placeholder="Nome do treinamento" /></div>
+                <div className="space-y-2"><Label htmlFor="duracao">Duração (horas)</Label><Input id="duracao" type="number" step="0.1" value={formData.duracao} onChange={(e) => setFormData(prev => ({ ...prev, duracao: e.target.value }))} placeholder="Ex: 4" /></div>
+                <div className="space-y-2"><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" value={formData.responsavel} onChange={(e) => setFormData(prev => ({ ...prev, responsavel: e.target.value }))} placeholder="Nome do instrutor" /></div>
+                <div className="space-y-2"><Label htmlFor="tipo">Tipo</Label><Select value={formData.tipo} onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Individual">Individual</SelectItem><SelectItem value="Grupo">Grupo</SelectItem></SelectContent></Select></div>
+                <div className="flex gap-2 pt-4"><Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">{editingTraining ? 'Atualizar' : 'Cadastrar'}</Button><Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); setEditingTraining(null); setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' }); }}>Cancelar</Button></div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Lista de Funções */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="glass-effect rounded-xl p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-gray-600" />
-            Funções Disponíveis
-          </h3>
-          
-          <div className="space-y-4">
-            {availablePositions.map((position, index) => {
-              const isSelected = selectedPositions.includes(position);
-              const positionTrainings = getPositionTrainings(position);
-              const totalHours = getTotalHours(position);
-              
-              return (
-                <motion.div
-                  key={position}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`p-4 rounded-lg border transition-all cursor-pointer ${
-                    isSelected 
-                      ? 'bg-blue-50 border-blue-300 shadow-md' 
-                      : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handlePositionToggle(position)}
-                >
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => handlePositionToggle(position)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-gray-800">{position}</h4>
-                        {isSelected && <CheckCircle className="w-5 h-5 text-green-500" />}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {positionTrainings.length} treinamento(s) • {totalHours}h total
-                      </p>
-                      <div className="space-y-1">
-                        {positionTrainings.slice(0, 2).map((training, idx) => (
-                          <div key={idx} className="text-xs text-gray-500">
-                            • {training.treinamento} ({training.duracao}h)
-                          </div>
-                        ))}
-                        {positionTrainings.length > 2 && (
-                          <div className="text-xs text-gray-500">
-                            • +{positionTrainings.length - 2} mais...
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-          
-          {availablePositions.length === 0 && (
-            <div className="text-center py-8">
-              <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhuma função disponível</p>
-              <p className="text-gray-400 text-sm">Cadastre treinamentos primeiro</p>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Resumo da Seleção */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="glass-effect rounded-xl p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-gray-600" />
-            Resumo da Integração
-          </h3>
-          
-          {selectedPositions.length > 0 ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-100 rounded-lg p-3">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {selectedPositions.length}
-                  </div>
-                  <div className="text-sm text-gray-600">Funções</div>
-                </div>
-                <div className="bg-gray-100 rounded-lg p-3">
-                  <div className="text-2xl font-bold text-green-600">
-                    {trainings.filter(t => selectedPositions.includes(t.funcao)).reduce((total, t) => total + t.duracao, 0)}h
-                  </div>
-                  <div className="text-sm text-gray-600">Total</div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium text-gray-800">Funções Selecionadas:</h4>
-                {selectedPositions.map((position) => (
-                  <div key={position} className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                    <span className="text-gray-700">{position}</span>
-                    <span className="text-sm text-gray-600">{getTotalHours(position)}h</span>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mb-2">
-                  <strong>Otimizações aplicadas:</strong>
-                </p>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li>• Agrupamento de treinamentos em grupo</li>
-                  <li>• Minimização de tempo ocioso</li>
-                  <li>• Otimização por instrutor</li>
-                  <li>• Respeito aos horários de trabalho</li>
-                </ul>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhuma função selecionada</p>
-              <p className="text-gray-400 text-sm">Selecione as funções que iniciarão a integração</p>
-            </div>
-          )}
-        </motion.div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Input
+          type="text"
+          placeholder="Filtrar por função..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="pl-10 w-full sm:w-72"
+        />
       </div>
+
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left p-4 text-gray-600 font-medium"><div className="flex items-center gap-2"><User className="w-4 h-4" />Função</div></th>
+                <th className="text-left p-4 text-gray-600 font-medium"><div className="flex items-center gap-2"><BookOpen className="w-4 h-4" />Treinamento</div></th>
+                <th className="text-left p-4 text-gray-600 font-medium"><div className="flex items-center gap-2"><Clock className="w-4 h-4" />Duração</div></th>
+                <th className="text-left p-4 text-gray-600 font-medium">Responsável</th>
+                <th className="text-left p-4 text-gray-600 font-medium">Tipo</th>
+                <th className="text-left p-4 text-gray-600 font-medium">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTrainings.map((training, index) => (
+                <motion.tr key={training.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <td className="p-4 text-gray-800 font-medium">{training.funcao}</td>
+                  <td className="p-4 text-gray-600">{training.treinamento}</td>
+                  <td className="p-4 text-gray-600">{training.duracao}h</td>
+                  <td className="p-4 text-gray-600">{training.responsavel}</td>
+                  <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${training.tipo === 'Individual' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{training.tipo}</span></td>
+                  <td className="p-4"><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => handleEdit(training)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"><Edit className="w-4 h-4" /></Button><Button size="sm" variant="ghost" onClick={() => handleDelete(training.id)} className="text-red-600 hover:text-red-700 hover:bg-red-100"><Trash2 className="w-4 h-4" /></Button></div></td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredTrainings.length === 0 && (
+            <div className="text-center py-12">
+              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">Nenhum treinamento encontrado.</p>
+              <p className="text-gray-400 text-sm">{trainings.length > 0 ? 'Tente um filtro diferente.' : 'Clique em "Novo" para começar ou importe um arquivo CSV.'}</p>
+            </div>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 };
 
-export default IntegrationsTab;
+export default TrainingsTab;
