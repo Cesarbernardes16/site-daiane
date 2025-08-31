@@ -266,7 +266,7 @@ const ScheduleTab = () => {
             {days.map(day => (
               <motion.div 
                 key={`${day}-morning`} 
-                className="calendar-cell bg-white"
+                className="calendar-cell"
                 onDrop={() => handleDrop(day, 'Manhã')}
                 onDragOver={(e) => e.preventDefault()}
               >
@@ -277,12 +277,12 @@ const ScheduleTab = () => {
                       drag
                       onDragStart={() => handleDragStart(training, day, 'Manhã')}
                       whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
-                      className={`training-block cursor-grab ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
+                      className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
                     >
-                      <div className="font-medium">{training.treinamento}</div>
-                      <div className="text-xs">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
-                      <div className="text-xs opacity-90">{training.responsavel}</div>
-                      <div className="text-xs opacity-70">{training.startTime} - {training.endTime}</div>
+                      <div className="font-semibold truncate">{training.treinamento}</div>
+                      <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
+                      <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
+                      <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
                     </motion.div>
                   ))}
                 </div>
@@ -296,7 +296,7 @@ const ScheduleTab = () => {
             {days.map(day => (
               <motion.div 
                 key={`${day}-afternoon`} 
-                className="calendar-cell bg-white"
+                className="calendar-cell"
                 onDrop={() => handleDrop(day, 'Tarde')}
                 onDragOver={(e) => e.preventDefault()}
               >
@@ -307,12 +307,12 @@ const ScheduleTab = () => {
                       drag
                       onDragStart={() => handleDragStart(training, day, 'Tarde')}
                       whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
-                      className={`training-block cursor-grab ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
+                      className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
                     >
-                      <div className="font-medium">{training.treinamento}</div>
-                      <div className="text-xs">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
-                      <div className="text-xs opacity-90">{training.responsavel}</div>
-                      <div className="text-xs opacity-70">{training.startTime} - {training.endTime}</div>
+                      <div className="font-semibold truncate">{training.treinamento}</div>
+                      <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
+                      <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
+                      <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
                     </motion.div>
                   ))}
                 </div>

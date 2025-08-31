@@ -40,20 +40,20 @@ body {
   @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
 }
 
-/* --- ESTILOS DA AGENDA ATUALIZADOS --- */
+/* --- ESTILOS DA AGENDA --- */
 
 .calendar-grid {
   display: grid;
   grid-template-columns: 100px repeat(6, 1fr);
-  @apply border-l border-t border-gray-200; /* Adiciona borda inicial à esquerda e no topo */
+  @apply border-l border-t border-gray-200;
 }
 
 .calendar-cell {
-  @apply p-2 min-h-[80px] border-b border-r border-gray-200; /* Adiciona bordas em cada célula */
+  @apply p-2 min-h-[120px] border-b border-r border-gray-200; /* Altura mínima para acomodar pelo menos um item */
 }
 
 .calendar-header {
-  @apply bg-gray-50 font-medium text-gray-600 text-center;
+  @apply bg-gray-50 font-medium text-gray-600 text-center !min-h-0; /* Reseta a altura mínima para o cabeçalho */
 }
 
 .calendar-time-col {
