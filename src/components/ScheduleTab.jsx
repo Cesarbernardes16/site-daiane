@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, PanInfo } from 'framer-motion';
 import { Calendar, Clock, Users, Download, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -7,6 +7,9 @@ import { toast } from '@/components/ui/use-toast';
 const ScheduleTab = () => {
   const [scheduleData, setScheduleData] = useState(null);
   const [weekSchedule, setWeekSchedule] = useState({});
+  const [draggingItem, setDraggingItem] = useState(null);
+
+  const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
   useEffect(() => {
     loadScheduleData();
@@ -17,12 +20,21 @@ const ScheduleTab = () => {
     if (savedSchedule) {
       const data = JSON.parse(savedSchedule);
       setScheduleData(data);
-      generateWeekSchedule(data.schedule);
+      if (data.weekSchedule) {
+        setWeekSchedule(data.weekSchedule);
+      } else {
+        generateWeekSchedule(data.schedule);
+      }
     }
   };
 
+  const saveSchedule = (newWeekSchedule) => {
+    const newScheduleData = { ...scheduleData, weekSchedule: newWeekSchedule };
+    setScheduleData(newScheduleData);
+    localStorage.setItem('generatedSchedule', JSON.stringify(newScheduleData));
+  };
+
   const generateWeekSchedule = (trainings) => {
-    const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const timeSlots = [
       { start: '07:00', end: '11:00', period: 'Manhã' },
       { start: '13:00', end: '17:00', period: 'Tarde' }
@@ -33,23 +45,18 @@ const ScheduleTab = () => {
     let currentSlot = 0;
     let currentTime = 0;
 
-    // Inicializar estrutura da agenda
     days.forEach(day => {
-      schedule[day] = {
-        Manhã: [],
-        Tarde: []
-      };
+      schedule[day] = { Manhã: [], Tarde: [] };
     });
 
-    // Distribuir treinamentos
-    trainings.forEach(training => {
+    trainings.forEach((training, index) => {
       const duration = training.duracao;
       let remainingHours = duration;
 
       while (remainingHours > 0 && currentDay < days.length) {
         const day = days[currentDay];
         const slot = timeSlots[currentSlot];
-        const availableHours = 4 - currentTime; // 4 horas por período
+        const availableHours = 4 - currentTime;
         const hoursToSchedule = Math.min(remainingHours, availableHours);
 
         if (hoursToSchedule > 0) {
@@ -58,6 +65,7 @@ const ScheduleTab = () => {
 
           schedule[day][slot.period].push({
             ...training,
+            id: training.id || `training-${index}`,
             startTime,
             endTime,
             duration: hoursToSchedule,
@@ -68,13 +76,9 @@ const ScheduleTab = () => {
           currentTime += hoursToSchedule;
         }
 
-        // Avançar para próximo slot/dia
         if (currentTime >= 4) {
           currentTime = 0;
           currentSlot++;
-          
-          // Se for sábado, só tem o período da manhã.
-          // Se já passou do período da tarde ou se é sábado e já passou do período da manhã, vai para o próximo dia
           if ((currentDay === 5 && currentSlot >= 1) || (currentSlot >= timeSlots.length)) {
             currentSlot = 0;
             currentDay++;
@@ -84,12 +88,52 @@ const ScheduleTab = () => {
     });
 
     setWeekSchedule(schedule);
+    saveSchedule(schedule);
   };
+  
+  const handleDragStart = (item, day, period) => {
+    setDraggingItem({ ...item, sourceDay: day, sourcePeriod: period });
+  };
+  
+  const handleDrop = (targetDay, targetPeriod) => {
+    if (!draggingItem) return;
+
+    const { sourceDay, sourcePeriod, id } = draggingItem;
+    
+    if (sourceDay === targetDay && sourcePeriod === targetPeriod) {
+        setDraggingItem(null);
+        return;
+    }
+
+    const newSchedule = { ...weekSchedule };
+
+    const sourceList = newSchedule[sourceDay][sourcePeriod];
+    const targetList = newSchedule[targetDay][targetPeriod];
+    
+    const itemIndex = sourceList.findIndex(t => t.id === id);
+    if (itemIndex > -1) {
+      const [movedItem] = sourceList.splice(itemIndex, 1);
+      targetList.push(movedItem);
+      
+      setWeekSchedule(newSchedule);
+      saveSchedule(newSchedule);
+      
+      toast({
+        title: "Agenda Atualizada!",
+        description: `Treinamento movido de ${sourceDay} para ${targetDay}.`
+      });
+    }
+
+    setDraggingItem(null);
+  };
+
 
   const addHours = (time, hours) => {
     const [h, m] = time.split(':').map(Number);
-    const newHour = h + hours;
-    return `${newHour.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    const totalMinutes = h * 60 + m + hours * 60;
+    const newHour = Math.floor(totalMinutes / 60);
+    const newMinute = totalMinutes % 60;
+    return `${newHour.toString().padStart(2, '0')}:${newMinute.toString().padStart(2, '0')}`;
   };
 
   const exportToPDF = () => {
@@ -117,7 +161,7 @@ const ScheduleTab = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-effect rounded-xl p-12 text-center shadow-sm"
+          className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm"
         >
           <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-800 mb-2">Nenhuma agenda gerada</h3>
@@ -127,7 +171,6 @@ const ScheduleTab = () => {
           <Button
             onClick={() => window.location.reload()}
             variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-gray-100"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Atualizar
@@ -139,7 +182,7 @@ const ScheduleTab = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Agenda Gerada</h2>
           <p className="text-gray-600">Semana de {scheduleData.week}</p>
@@ -149,7 +192,6 @@ const ScheduleTab = () => {
           <Button
             onClick={exportToPDF}
             variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-gray-100"
           >
             <Download className="w-4 h-4 mr-2" />
             PDF
@@ -157,7 +199,6 @@ const ScheduleTab = () => {
           <Button
             onClick={exportToExcel}
             variant="outline"
-            className="border-gray-300 text-gray-700 hover:bg-gray-100"
           >
             <Download className="w-4 h-4 mr-2" />
             Excel
@@ -165,11 +206,10 @@ const ScheduleTab = () => {
         </div>
       </div>
 
-      {/* Resumo */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-effect rounded-xl p-6 shadow-sm"
+        className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm"
       >
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <Users className="w-5 h-5 text-gray-600" />
@@ -208,12 +248,11 @@ const ScheduleTab = () => {
         </div>
       </motion.div>
 
-      {/* Calendário Semanal */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="glass-effect rounded-xl overflow-hidden shadow-sm"
+        className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm"
       >
         <div className="p-6 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -224,32 +263,34 @@ const ScheduleTab = () => {
         
         <div className="overflow-x-auto">
           <div className="calendar-grid min-w-[800px]">
-            {/* Header */}
             <div className="calendar-cell bg-gray-100 font-medium text-gray-700 text-center">
               Horário
             </div>
-            {Object.keys(weekSchedule).map(day => (
+            {days.map(day => (
               <div key={day} className="calendar-cell bg-gray-100 font-medium text-gray-700 text-center">
                 {day}
               </div>
             ))}
             
-            {/* Manhã */}
-            <div className="calendar-cell bg-gray-50 font-medium text-gray-700 text-center">
-              <div className="flex flex-col items-center gap-1">
+            <div className="calendar-cell bg-gray-50 font-medium text-gray-700 text-center flex flex-col items-center justify-center">
                 <Clock className="w-4 h-4" />
-                <span>07:00</span>
-                <span>-</span>
-                <span>11:00</span>
-              </div>
+                <span>07:00 - 11:00</span>
             </div>
-            {Object.keys(weekSchedule).map(day => (
-              <div key={`${day}-morning`} className="calendar-cell">
+            {days.map(day => (
+              <motion.div 
+                key={`${day}-morning`} 
+                className="calendar-cell"
+                onDrop={() => handleDrop(day, 'Manhã')}
+                onDragOver={(e) => e.preventDefault()}
+              >
                 <div className="space-y-1">
                   {weekSchedule[day]?.Manhã?.map((training, index) => (
-                    <div
-                      key={index}
-                      className={`training-block ${
+                    <motion.div
+                      key={training.id || index}
+                      drag
+                      onDragStart={() => handleDragStart(training, day, 'Manhã')}
+                      dragSnapToOrigin
+                      className={`training-block cursor-grab ${
                         training.tipo === 'Individual' ? 'training-individual' : 'training-group'
                       }`}
                     >
@@ -263,28 +304,31 @@ const ScheduleTab = () => {
                       <div className="text-xs opacity-70">
                         {training.startTime} - {training.endTime}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             ))}
             
-            {/* Tarde */}
-            <div className="calendar-cell bg-gray-50 font-medium text-gray-700 text-center">
-              <div className="flex flex-col items-center gap-1">
+            <div className="calendar-cell bg-gray-50 font-medium text-gray-700 text-center flex flex-col items-center justify-center">
                 <Clock className="w-4 h-4" />
-                <span>13:00</span>
-                <span>-</span>
-                <span>17:00</span>
-              </div>
+                <span>13:00 - 17:00</span>
             </div>
-            {Object.keys(weekSchedule).map(day => (
-              <div key={`${day}-afternoon`} className="calendar-cell">
+            {days.map(day => (
+              <motion.div 
+                key={`${day}-afternoon`} 
+                className="calendar-cell"
+                onDrop={() => handleDrop(day, 'Tarde')}
+                onDragOver={(e) => e.preventDefault()}
+              >
                 <div className="space-y-1">
                   {weekSchedule[day]?.Tarde?.map((training, index) => (
-                    <div
-                      key={index}
-                      className={`training-block ${
+                     <motion.div
+                      key={training.id || index}
+                      drag
+                      onDragStart={() => handleDragStart(training, day, 'Tarde')}
+                      dragSnapToOrigin
+                      className={`training-block cursor-grab ${
                         training.tipo === 'Individual' ? 'training-individual' : 'training-group'
                       }`}
                     >
@@ -298,21 +342,20 @@ const ScheduleTab = () => {
                       <div className="text-xs opacity-70">
                         {training.startTime} - {training.endTime}
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </motion.div>
 
-      {/* Legenda */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="glass-effect rounded-xl p-6 shadow-sm"
+        className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm"
       >
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Legenda</h3>
         <div className="flex flex-wrap gap-4">
