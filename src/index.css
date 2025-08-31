@@ -40,15 +40,24 @@ body {
   @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
 }
 
+/* --- ESTILOS DA AGENDA ATUALIZADOS --- */
+
 .calendar-grid {
   display: grid;
   grid-template-columns: 100px repeat(6, 1fr);
-  gap: 1px;
-  background-color: hsl(var(--border));
+  @apply border-l border-t border-gray-200; /* Adiciona borda inicial à esquerda e no topo */
 }
 
 .calendar-cell {
-  @apply bg-white p-2 min-h-[60px];
+  @apply p-2 min-h-[80px] border-b border-r border-gray-200; /* Adiciona bordas em cada célula */
+}
+
+.calendar-header {
+  @apply bg-gray-50 font-medium text-gray-600 text-center;
+}
+
+.calendar-time-col {
+  @apply bg-gray-50 font-medium text-gray-600 text-center flex flex-col items-center justify-center;
 }
 
 .training-block {
@@ -62,6 +71,8 @@ body {
 .training-group {
   @apply bg-green-50 border-green-500 text-green-800;
 }
+
+/* --- FIM DOS ESTILOS DA AGENDA --- */
 
 .scrollbar-thin {
   scrollbar-width: thin;

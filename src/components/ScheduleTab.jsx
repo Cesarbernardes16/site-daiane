@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, PanInfo } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Calendar, Clock, Users, Download, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -16,19 +16,25 @@ const ScheduleTab = () => {
   }, []);
 
   const loadScheduleData = () => {
-    const savedSchedule = localStorage.getItem('generatedSchedule');
-    if (savedSchedule) {
-      const data = JSON.parse(savedSchedule);
-      setScheduleData(data);
-      if (data.weekSchedule) {
-        setWeekSchedule(data.weekSchedule);
-      } else {
-        generateWeekSchedule(data.schedule);
+    try {
+      const savedSchedule = localStorage.getItem('generatedSchedule');
+      if (savedSchedule) {
+        const data = JSON.parse(savedSchedule);
+        setScheduleData(data);
+        if (data.weekSchedule) {
+          setWeekSchedule(data.weekSchedule);
+        } else if (data.schedule) {
+          generateWeekSchedule(data.schedule);
+        }
       }
+    } catch (error) {
+      console.error("Erro ao carregar dados da agenda:", error);
+      localStorage.removeItem('generatedSchedule');
     }
   };
 
   const saveSchedule = (newWeekSchedule) => {
+    if (!scheduleData) return;
     const newScheduleData = { ...scheduleData, weekSchedule: newWeekSchedule };
     setScheduleData(newScheduleData);
     localStorage.setItem('generatedSchedule', JSON.stringify(newScheduleData));
@@ -41,13 +47,15 @@ const ScheduleTab = () => {
     ];
 
     const schedule = {};
-    let currentDay = 0;
-    let currentSlot = 0;
-    let currentTime = 0;
-
     days.forEach(day => {
       schedule[day] = { Manhã: [], Tarde: [] };
     });
+
+    if (!trainings) return;
+
+    let currentDay = 0;
+    let currentSlot = 0;
+    let currentTime = 0;
 
     trainings.forEach((training, index) => {
       const duration = training.duracao;
@@ -65,7 +73,7 @@ const ScheduleTab = () => {
 
           schedule[day][slot.period].push({
             ...training,
-            id: training.id || `training-${index}`,
+            id: training.id || `training-${Date.now()}-${index}`,
             startTime,
             endTime,
             duration: hoursToSchedule,
@@ -105,10 +113,10 @@ const ScheduleTab = () => {
         return;
     }
 
-    const newSchedule = { ...weekSchedule };
+    const newSchedule = JSON.parse(JSON.stringify(weekSchedule));
 
-    const sourceList = newSchedule[sourceDay][sourcePeriod];
-    const targetList = newSchedule[targetDay][targetPeriod];
+    const sourceList = newSchedule[sourceDay]?.[sourcePeriod] || [];
+    const targetList = newSchedule[targetDay]?.[targetPeriod] || [];
     
     const itemIndex = sourceList.findIndex(t => t.id === id);
     if (itemIndex > -1) {
@@ -127,13 +135,12 @@ const ScheduleTab = () => {
     setDraggingItem(null);
   };
 
-
   const addHours = (time, hours) => {
     const [h, m] = time.split(':').map(Number);
     const totalMinutes = h * 60 + m + hours * 60;
     const newHour = Math.floor(totalMinutes / 60);
     const newMinute = totalMinutes % 60;
-    return `${newHour.toString().padStart(2, '0')}:${newMinute.toString().padStart(2, '0')}`;
+    return `${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`;
   };
 
   const exportToPDF = () => {
@@ -157,7 +164,6 @@ const ScheduleTab = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Agenda Gerada</h2>
           <p className="text-gray-600">Visualize e gerencie a agenda de integração</p>
         </div>
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -168,10 +174,7 @@ const ScheduleTab = () => {
           <p className="text-gray-600 mb-6">
             Vá para a aba "Integrações da Semana" e selecione as funções para gerar uma agenda otimizada.
           </p>
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-          >
+          <Button onClick={() => window.location.reload()} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Atualizar
           </Button>
@@ -187,21 +190,12 @@ const ScheduleTab = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Agenda Gerada</h2>
           <p className="text-gray-600">Semana de {scheduleData.week}</p>
         </div>
-        
         <div className="flex gap-2">
-          <Button
-            onClick={exportToPDF}
-            variant="outline"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            PDF
+          <Button onClick={exportToPDF} variant="outline">
+            <Download className="w-4 h-4 mr-2" /> PDF
           </Button>
-          <Button
-            onClick={exportToExcel}
-            variant="outline"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Excel
+          <Button onClick={exportToExcel} variant="outline">
+            <Download className="w-4 h-4 mr-2" /> Excel
           </Button>
         </div>
       </div>
@@ -215,28 +209,26 @@ const ScheduleTab = () => {
           <Users className="w-5 h-5 text-gray-600" />
           Resumo da Integração
         </h3>
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-gray-100 rounded-lg p-4">
             <div className="text-2xl font-bold text-blue-600">
-              {scheduleData.positions.length}
+              {scheduleData?.positions?.length || 0}
             </div>
             <div className="text-sm text-gray-600">Funções</div>
           </div>
           <div className="bg-gray-100 rounded-lg p-4">
             <div className="text-2xl font-bold text-green-600">
-              {scheduleData.schedule.length}
+              {scheduleData?.schedule?.length || 0}
             </div>
             <div className="text-sm text-gray-600">Treinamentos</div>
           </div>
           <div className="bg-gray-100 rounded-lg p-4">
             <div className="text-2xl font-bold text-purple-600">
-              {scheduleData.schedule.reduce((total, t) => total + t.duracao, 0)}h
+              {(scheduleData?.schedule?.reduce((total, t) => total + t.duracao, 0)) || 0}h
             </div>
             <div className="text-sm text-gray-600">Total</div>
           </div>
         </div>
-        
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
@@ -260,88 +252,67 @@ const ScheduleTab = () => {
             Agenda Semanal
           </h3>
         </div>
-        
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto p-2">
           <div className="calendar-grid min-w-[800px]">
-            <div className="calendar-cell bg-gray-100 font-medium text-gray-700 text-center">
-              Horário
-            </div>
+            <div className="calendar-cell calendar-header">Horário</div>
             {days.map(day => (
-              <div key={day} className="calendar-cell bg-gray-100 font-medium text-gray-700 text-center">
-                {day}
-              </div>
+              <div key={day} className="calendar-cell calendar-header">{day}</div>
             ))}
             
-            <div className="calendar-cell bg-gray-50 font-medium text-gray-700 text-center flex flex-col items-center justify-center">
-                <Clock className="w-4 h-4" />
+            <div className="calendar-cell calendar-time-col">
+                <Clock className="w-4 h-4 mb-1" />
                 <span>07:00 - 11:00</span>
             </div>
             {days.map(day => (
               <motion.div 
                 key={`${day}-morning`} 
-                className="calendar-cell"
+                className="calendar-cell bg-white"
                 onDrop={() => handleDrop(day, 'Manhã')}
                 onDragOver={(e) => e.preventDefault()}
               >
-                <div className="space-y-1">
-                  {weekSchedule[day]?.Manhã?.map((training, index) => (
+                <div className="space-y-2">
+                  {weekSchedule[day]?.Manhã?.map((training) => (
                     <motion.div
-                      key={training.id || index}
+                      key={training.id}
                       drag
                       onDragStart={() => handleDragStart(training, day, 'Manhã')}
-                      dragSnapToOrigin
-                      className={`training-block cursor-grab ${
-                        training.tipo === 'Individual' ? 'training-individual' : 'training-group'
-                      }`}
+                      whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
+                      className={`training-block cursor-grab ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
                     >
                       <div className="font-medium">{training.treinamento}</div>
-                      <div className="text-xs">
-                        {training.funcoes ? training.funcoes.join(', ') : training.funcao}
-                      </div>
-                      <div className="text-xs opacity-90">
-                        {training.responsavel}
-                      </div>
-                      <div className="text-xs opacity-70">
-                        {training.startTime} - {training.endTime}
-                      </div>
+                      <div className="text-xs">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
+                      <div className="text-xs opacity-90">{training.responsavel}</div>
+                      <div className="text-xs opacity-70">{training.startTime} - {training.endTime}</div>
                     </motion.div>
                   ))}
                 </div>
               </motion.div>
             ))}
             
-            <div className="calendar-cell bg-gray-50 font-medium text-gray-700 text-center flex flex-col items-center justify-center">
-                <Clock className="w-4 h-4" />
+            <div className="calendar-cell calendar-time-col">
+                <Clock className="w-4 h-4 mb-1" />
                 <span>13:00 - 17:00</span>
             </div>
             {days.map(day => (
               <motion.div 
                 key={`${day}-afternoon`} 
-                className="calendar-cell"
+                className="calendar-cell bg-white"
                 onDrop={() => handleDrop(day, 'Tarde')}
                 onDragOver={(e) => e.preventDefault()}
               >
-                <div className="space-y-1">
-                  {weekSchedule[day]?.Tarde?.map((training, index) => (
+                <div className="space-y-2">
+                  {weekSchedule[day]?.Tarde?.map((training) => (
                      <motion.div
-                      key={training.id || index}
+                      key={training.id}
                       drag
                       onDragStart={() => handleDragStart(training, day, 'Tarde')}
-                      dragSnapToOrigin
-                      className={`training-block cursor-grab ${
-                        training.tipo === 'Individual' ? 'training-individual' : 'training-group'
-                      }`}
+                      whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
+                      className={`training-block cursor-grab ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
                     >
                       <div className="font-medium">{training.treinamento}</div>
-                      <div className="text-xs">
-                        {training.funcoes ? training.funcoes.join(', ') : training.funcao}
-                      </div>
-                      <div className="text-xs opacity-90">
-                        {training.responsavel}
-                      </div>
-                      <div className="text-xs opacity-70">
-                        {training.startTime} - {training.endTime}
-                      </div>
+                      <div className="text-xs">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
+                      <div className="text-xs opacity-90">{training.responsavel}</div>
+                      <div className="text-xs opacity-70">{training.startTime} - {training.endTime}</div>
                     </motion.div>
                   ))}
                 </div>
