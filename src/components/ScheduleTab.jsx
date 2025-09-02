@@ -270,22 +270,21 @@ const ScheduleTab = () => {
                 onDrop={() => handleDrop(day, 'Manhã')}
                 onDragOver={(e) => e.preventDefault()}
               >
-                <div className="space-y-2">
-                  {weekSchedule[day]?.Manhã?.map((training) => (
-                    <motion.div
-                      key={training.id}
-                      drag
-                      onDragStart={() => handleDragStart(training, day, 'Manhã')}
-                      whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
-                      className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
-                    >
-                      <div className="font-semibold truncate">{training.treinamento}</div>
-                      <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
-                      <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
-                      <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
-                    </motion.div>
-                  ))}
-                </div>
+                {/* A DIV INTERNA com 'space-y-2' FOI REMOVIDA DAQUI */}
+                {weekSchedule[day]?.Manhã?.map((training) => (
+                  <motion.div
+                    key={training.id}
+                    drag
+                    onDragStart={() => handleDragStart(training, day, 'Manhã')}
+                    whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
+                    className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
+                  >
+                    <div className="font-semibold truncate">{training.treinamento}</div>
+                    <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
+                    <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
+                    <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
+                  </motion.div>
+                ))}
               </motion.div>
             ))}
             
@@ -300,22 +299,21 @@ const ScheduleTab = () => {
                 onDrop={() => handleDrop(day, 'Tarde')}
                 onDragOver={(e) => e.preventDefault()}
               >
-                <div className="space-y-2">
-                  {weekSchedule[day]?.Tarde?.map((training) => (
-                     <motion.div
-                      key={training.id}
-                      drag
-                      onDragStart={() => handleDragStart(training, day, 'Tarde')}
-                      whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
-                      className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
-                    >
-                      <div className="font-semibold truncate">{training.treinamento}</div>
-                      <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
-                      <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
-                      <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
-                    </motion.div>
-                  ))}
-                </div>
+                {/* E A DIV INTERNA FOI REMOVIDA DAQUI TAMBÉM */}
+                {weekSchedule[day]?.Tarde?.map((training) => (
+                   <motion.div
+                    key={training.id}
+                    drag
+                    onDragStart={() => handleDragStart(training, day, 'Tarde')}
+                    whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
+                    className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
+                  >
+                    <div className="font-semibold truncate">{training.treinamento}</div>
+                    <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
+                    <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
+                    <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
+                  </motion.div>
+                ))}
               </motion.div>
             ))}
           </div>

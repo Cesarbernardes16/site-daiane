@@ -32,34 +32,37 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-.glass-effect {
-  @apply bg-white/90 backdrop-blur-sm border border-gray-200/80;
-}
-
-.gradient-text {
-  @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
-}
-
 /* --- ESTILOS DA AGENDA --- */
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: 100px repeat(6, 1fr);
-  @apply border-l border-t border-gray-200;
+  /* Mantém as 7 colunas (Horário + 6 dias) */
+  grid-template-columns: 100px repeat(6, 1fr); 
 }
 
+/* AQUI ESTÁ A CORREÇÃO PRINCIPAL:
+  - Removemos a altura mínima fixa do @apply.
+  - Adicionamos 'flex flex-col gap-2' para que a célula empilhe os cards verticalmente.
+  - A propriedade 'min-height' garante que a célula tenha um tamanho mínimo, mas possa crescer.
+*/
 .calendar-cell {
-  @apply p-2 min-h-[120px] border-b border-r border-gray-200; /* Altura mínima para acomodar pelo menos um item */
+  @apply p-2 border-b border-r border-gray-200 flex flex-col gap-2;
+  min-height: 120px;
 }
 
 .calendar-header {
-  @apply bg-gray-50 font-medium text-gray-600 text-center !min-h-0; /* Reseta a altura mínima para o cabeçalho */
+  @apply bg-gray-50 font-medium text-gray-600 text-center;
+  /* Remove o comportamento flex do cabeçalho e reseta a altura mínima */
+  display: block; 
+  min-height: auto !important;
 }
 
 .calendar-time-col {
   @apply bg-gray-50 font-medium text-gray-600 text-center flex flex-col items-center justify-center;
 }
 
+/* ESTILOS ORIGINAIS DOS CARDS (RESTAURADOS)
+*/
 .training-block {
   @apply rounded-md p-2 text-xs font-medium shadow-sm border-l-4;
 }
@@ -70,24 +73,4 @@ body {
 
 .training-group {
   @apply bg-green-50 border-green-500 text-green-800;
-}
-
-/* --- FIM DOS ESTILOS DA AGENDA --- */
-
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted)) transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: hsl(var(--muted));
-  border-radius: 3px;
 }
