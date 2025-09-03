@@ -105,36 +105,77 @@ const TrainingsTab = ({ userRole }) => {
   };
 
   const handleImportCSV = (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: async (results) => {
-            const importedData = results.data.map(row => ({
-              funcao: row.Função || row.funcao,
-              treinamento: row.Treinamento || row.treinamento,
-              duracao: parseInt(row['Duração (minutos)'] || row.duracao, 10),
-              responsavel: row.Responsável || row.responsavel,
-              tipo: row.Tipo || row.tipo || 'Individual'
-            })).filter(t => t.funcao && t.treinamento && !isNaN(t.duracao) && t.responsavel);
-  
-            if(importedData.length > 0) {
-              const { error } = await supabase.from('trainings').insert(importedData);
-    
-              if (error) {
-                toast({ title: "Erro na importação", description: error.message, variant: "destructive" });
-              } else {
-                toast({ title: "Sucesso!", description: `${importedData.length} treinamentos importados.`});
-                getTrainings();
-              }
-            }
-          },
-          error: (error) => {
-            toast({ title: "Erro na importação", description: error.message, variant: "destructive" });
-          }
+    // PONTO DE VERIFICAÇÃO 1
+    console.log('--- Passo 1: Função handleImportCSV foi chamada ---');
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // PONTO DE VERIFICAÇÃO 2
+    console.log('--- Passo 2: Arquivo selecionado:', file.name, '---');
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        // PONTO DE VERIFICAÇÃO 3
+        console.log('--- Passo 3: Papa.parse completou a leitura. Dados brutos:', results.data, '---');
+        
+        const trainingsToImport = results.data.map(row => ({
+          funcao: row.Função || row.funcao,
+          treinamento: row.Treinamento || row.treinamento,
+          duracao: parseInt(row['Duração (minutos)'] || row.duracao, 10),
+          responsavel: row.Responsável || row.responsavel,
+          tipo: row.Tipo || row.tipo || 'Individual'
+        })).filter(t => t.funcao && t.treinamento && !isNaN(t.duracao) && t.responsavel);
+
+        // PONTO DE VERIFICAÇÃO 4
+        console.log('--- Passo 4: Dados filtrados e prontos para importar:', trainingsToImport, '---');
+
+        if (trainingsToImport.length === 0) {
+          toast({
+            title: "Arquivo Vazio ou Inválido",
+            description: "O CSV não contém dados válidos ou as colunas não foram reconhecidas.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // PONTO DE VERIFICAÇÃO 5
+        console.log("--- Passo 5: PRESTES A CHAMAR A FUNÇÃO SUPABASE ---");
+        const { data, error } = await supabase.functions.invoke('import-csv', {
+          body: { trainings: trainingsToImport },
+        });
+
+        // PONTO DE VERIFICAÇÃO 6
+        console.log("--- Passo 6: CHAMADA DA FUNÇÃO SUPABASE CONCLUÍDA ---", { data, error });
+
+        if (error) {
+          toast({
+            title: "Erro na importação",
+            description: `Ocorreu um erro: ${error.message}`,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Sucesso!",
+            description: data.message || `${trainingsToImport.length} treinamentos importados com sucesso.`
+          });
+          getTrainings();
+        }
+      },
+      error: (error) => {
+        console.error('--- ERRO NO PAPA.PARSE:', error, '---');
+        toast({
+          title: "Erro ao ler o arquivo",
+          description: error.message,
+          variant: "destructive"
         });
       }
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const formatDuration = (totalMinutes) => {
@@ -155,8 +196,6 @@ const TrainingsTab = ({ userRole }) => {
         </div>
         <div className="flex gap-2">
           
-          {/* ===== CONDIÇÃO DE PERMISSÃO ADICIONADA AQUI ===== */}
-          {/* O botão de importar só aparece se o userRole for 'admin' */}
           {userRole === 'admin' && (
             <>
               <input type="file" ref={fileInputRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
