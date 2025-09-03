@@ -1,345 +1,235 @@
 import React, { useState, useEffect } from 'react';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Users, Download, RefreshCw, AlertCircle } from 'lucide-react';
+import { Calendar, Printer, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from "@/components/ui/use-toast";
 
-const ScheduleTab = () => {
-  const [scheduleData, setScheduleData] = useState(null);
-  const [weekSchedule, setWeekSchedule] = useState({});
-  const [draggingItem, setDraggingItem] = useState(null);
+// Função para formatar a duração
+const formatDuration = (totalMinutes) => {
+  if (!totalMinutes) return '0m';
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+};
 
-  const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const ItemType = 'TRAINING';
 
-  useEffect(() => {
-    loadScheduleData();
-  }, []);
-
-  const loadScheduleData = () => {
-    try {
-      const savedSchedule = localStorage.getItem('generatedSchedule');
-      if (savedSchedule) {
-        const data = JSON.parse(savedSchedule);
-        setScheduleData(data);
-        if (data.weekSchedule) {
-          setWeekSchedule(data.weekSchedule);
-        } else if (data.schedule) {
-          generateWeekSchedule(data.schedule);
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao carregar dados da agenda:", error);
-      localStorage.removeItem('generatedSchedule');
-    }
-  };
-
-  const saveSchedule = (newWeekSchedule) => {
-    if (!scheduleData) return;
-    const newScheduleData = { ...scheduleData, weekSchedule: newWeekSchedule };
-    setScheduleData(newScheduleData);
-    localStorage.setItem('generatedSchedule', JSON.stringify(newScheduleData));
-  };
-
-  const generateWeekSchedule = (trainings) => {
-    const timeSlots = [
-      { start: '07:00', end: '11:00', period: 'Manhã' },
-      { start: '13:00', end: '17:00', period: 'Tarde' }
-    ];
-
-    const schedule = {};
-    days.forEach(day => {
-      schedule[day] = { Manhã: [], Tarde: [] };
-    });
-
-    if (!trainings) return;
-
-    let currentDay = 0;
-    let currentSlot = 0;
-    let currentTime = 0;
-
-    trainings.forEach((training, index) => {
-      const duration = training.duracao;
-      let remainingHours = duration;
-
-      while (remainingHours > 0 && currentDay < days.length) {
-        const day = days[currentDay];
-        const slot = timeSlots[currentSlot];
-        const availableHours = 4 - currentTime;
-        const hoursToSchedule = Math.min(remainingHours, availableHours);
-
-        if (hoursToSchedule > 0) {
-          const startTime = addHours(slot.start, currentTime);
-          const endTime = addHours(startTime, hoursToSchedule);
-
-          schedule[day][slot.period].push({
-            ...training,
-            id: training.id || `training-${Date.now()}-${index}`,
-            startTime,
-            endTime,
-            duration: hoursToSchedule,
-            isPartial: duration > hoursToSchedule
-          });
-
-          remainingHours -= hoursToSchedule;
-          currentTime += hoursToSchedule;
-        }
-
-        if (currentTime >= 4) {
-          currentTime = 0;
-          currentSlot++;
-          if ((currentDay === 5 && currentSlot >= 1) || (currentSlot >= timeSlots.length)) {
-            currentSlot = 0;
-            currentDay++;
-          }
-        }
-      }
-    });
-
-    setWeekSchedule(schedule);
-    saveSchedule(schedule);
-  };
-  
-  const handleDragStart = (item, day, period) => {
-    setDraggingItem({ ...item, sourceDay: day, sourcePeriod: period });
-  };
-  
-  const handleDrop = (targetDay, targetPeriod) => {
-    if (!draggingItem) return;
-
-    const { sourceDay, sourcePeriod, id } = draggingItem;
-    
-    if (sourceDay === targetDay && sourcePeriod === targetPeriod) {
-        setDraggingItem(null);
-        return;
-    }
-
-    const newSchedule = JSON.parse(JSON.stringify(weekSchedule));
-
-    const sourceList = newSchedule[sourceDay]?.[sourcePeriod] || [];
-    const targetList = newSchedule[targetDay]?.[targetPeriod] || [];
-    
-    const itemIndex = sourceList.findIndex(t => t.id === id);
-    if (itemIndex > -1) {
-      const [movedItem] = sourceList.splice(itemIndex, 1);
-      targetList.push(movedItem);
-      
-      setWeekSchedule(newSchedule);
-      saveSchedule(newSchedule);
-      
-      toast({
-        title: "Agenda Atualizada!",
-        description: `Treinamento movido de ${sourceDay} para ${targetDay}.`
-      });
-    }
-
-    setDraggingItem(null);
-  };
-
-  const addHours = (time, hours) => {
-    const [h, m] = time.split(':').map(Number);
-    const totalMinutes = h * 60 + m + hours * 60;
-    const newHour = Math.floor(totalMinutes / 60);
-    const newMinute = totalMinutes % 60;
-    return `${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`;
-  };
-
-  const exportToPDF = () => {
-    toast({
-      title: "🚧 Funcionalidade em desenvolvimento",
-      description: "A exportação para PDF será implementada em breve!"
-    });
-  };
-
-  const exportToExcel = () => {
-    toast({
-      title: "🚧 Funcionalidade em desenvolvimento", 
-      description: "A exportação para Excel será implementada em breve!"
-    });
-  };
-
-  if (!scheduleData) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Agenda Gerada</h2>
-          <p className="text-gray-600">Visualize e gerencie a agenda de integração</p>
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm"
-        >
-          <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">Nenhuma agenda gerada</h3>
-          <p className="text-gray-600 mb-6">
-            Vá para a aba "Integrações da Semana" e selecione as funções para gerar uma agenda otimizada.
-          </p>
-          <Button onClick={() => window.location.reload()} variant="outline">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Atualizar
-          </Button>
-        </motion.div>
-      </div>
-    );
-  }
+// Componente para um item de treinamento que pode ser arrastado
+const DraggableTraining = ({ training, day, period, onDelete }) => {
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: ItemType,
+    item: { training, from: { day, period } },
+    collect: (monitor) => ({
+      isDragging: !!monitor.isDragging(),
+    }),
+  }));
 
   return (
-    <div className="space-y-6">
-       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Agenda Gerada</h2>
-          <p className="text-gray-600">Semana de {scheduleData.week}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={exportToPDF} variant="outline">
-            <Download className="w-4 h-4 mr-2" /> PDF
-          </Button>
-          <Button onClick={exportToExcel} variant="outline">
-            <Download className="w-4 h-4 mr-2" /> Excel
-          </Button>
-        </div>
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      className={`relative group p-2 rounded-md shadow-sm text-xs ${isDragging ? 'opacity-50' : ''} ${
+        training.tipo === 'Grupo' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+      }`}
+    >
+      <button
+        onClick={() => onDelete(training.id, day, period)}
+        className="absolute top-1 right-1 p-0.5 rounded bg-black/10 text-white opacity-0 group-hover:opacity-100 transition-opacity no-print"
+      >
+        <Trash2 size={12} />
+      </button>
+      
+      <div ref={drag} className="cursor-grab">
+        <p className="font-bold pr-4">{training.treinamento}</p>
+        <p>{training.responsavel}</p>
+        <p className="font-mono text-right">{formatDuration(training.duracao)}</p>
       </div>
+    </motion.div>
+  );
+};
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm"
-      >
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Users className="w-5 h-5 text-gray-600" />
-          Resumo da Integração
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-100 rounded-lg p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {scheduleData?.positions?.length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Funções</div>
-          </div>
-          <div className="bg-gray-100 rounded-lg p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {scheduleData?.schedule?.length || 0}
-            </div>
-            <div className="text-sm text-gray-600">Treinamentos</div>
-          </div>
-          <div className="bg-gray-100 rounded-lg p-4">
-            <div className="text-2xl font-bold text-purple-600">
-              {(scheduleData?.schedule?.reduce((total, t) => total + t.duracao, 0)) || 0}h
-            </div>
-            <div className="text-sm text-gray-600">Total</div>
-          </div>
-        </div>
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <strong>Otimizações aplicadas:</strong> Treinamentos agrupados por instrutor, 
-              horários otimizados para minimizar tempo ocioso.
-            </div>
-          </div>
-        </div>
-      </motion.div>
+// Componente para uma célula do calendário que pode receber itens
+const DroppableCell = ({ day, period, trainings, onMove, onDelete, children }) => {
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: ItemType,
+    drop: (item) => onMove(item, { day, period }),
+    collect: (monitor) => ({
+      isOver: !!monitor.isOver(),
+    }),
+  }));
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm"
-      >
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-gray-600" />
-            Agenda Semanal
-          </h3>
-        </div>
-        <div className="overflow-x-auto p-2">
-          <div className="calendar-grid min-w-[800px]">
-            <div className="calendar-cell calendar-header">Horário</div>
-            {days.map(day => (
-              <div key={day} className="calendar-cell calendar-header">{day}</div>
-            ))}
-            
-            <div className="calendar-cell calendar-time-col">
-                <Clock className="w-4 h-4 mb-1" />
-                <span>07:00 - 11:00</span>
-            </div>
-            {days.map(day => (
-              <motion.div 
-                key={`${day}-morning`} 
-                className="calendar-cell"
-                onDrop={() => handleDrop(day, 'Manhã')}
-                onDragOver={(e) => e.preventDefault()}
-              >
-                {/* A DIV INTERNA com 'space-y-2' FOI REMOVIDA DAQUI */}
-                {weekSchedule[day]?.Manhã?.map((training) => (
-                  <motion.div
-                    key={training.id}
-                    drag
-                    onDragStart={() => handleDragStart(training, day, 'Manhã')}
-                    whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
-                    className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
-                  >
-                    <div className="font-semibold truncate">{training.treinamento}</div>
-                    <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
-                    <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
-                    <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            ))}
-            
-            <div className="calendar-cell calendar-time-col">
-                <Clock className="w-4 h-4 mb-1" />
-                <span>13:00 - 17:00</span>
-            </div>
-            {days.map(day => (
-              <motion.div 
-                key={`${day}-afternoon`} 
-                className="calendar-cell"
-                onDrop={() => handleDrop(day, 'Tarde')}
-                onDragOver={(e) => e.preventDefault()}
-              >
-                {/* E A DIV INTERNA FOI REMOVIDA DAQUI TAMBÉM */}
-                {weekSchedule[day]?.Tarde?.map((training) => (
-                   <motion.div
-                    key={training.id}
-                    drag
-                    onDragStart={() => handleDragStart(training, day, 'Tarde')}
-                    whileDrag={{ scale: 1.05, zIndex: 50, boxShadow: "0px 10px 20px rgba(0,0,0,0.1)" }}
-                    className={`training-block cursor-grab h-24 flex flex-col justify-center ${training.tipo === 'Individual' ? 'training-individual' : 'training-group'}`}
-                  >
-                    <div className="font-semibold truncate">{training.treinamento}</div>
-                    <div className="text-xs truncate">{training.funcoes ? training.funcoes.join(', ') : training.funcao}</div>
-                    <div className="text-xs opacity-90 truncate mt-1">{training.responsavel}</div>
-                    <div className="text-xs opacity-70 truncate">{training.startTime} - {training.endTime}</div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm"
-      >
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Legenda</h3>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-50 border-l-4 border-blue-500 rounded"></div>
-            <span className="text-sm text-gray-700">Treinamento Individual</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-50 border-l-4 border-green-500 rounded"></div>
-            <span className="text-sm text-gray-700">Treinamento em Grupo</span>
-          </div>
-        </div>
-      </motion.div>
+  return (
+    <div
+      ref={drop}
+      className={`p-2 rounded-lg h-full transition-colors ${isOver ? 'bg-yellow-100' : 'bg-gray-50'}`}
+    >
+      {children}
+      <div className="space-y-2 mt-2">
+        {trainings.map(t => (
+          <DraggableTraining key={t.id} training={t} day={day} period={period} onDelete={onDelete} />
+        ))}
+      </div>
     </div>
   );
+};
+
+
+const ScheduleTab = () => {
+    const { toast } = useToast();
+    const [schedule, setSchedule] = useState(null);
+
+    useEffect(() => {
+        const generateSchedule = () => {
+            const savedTrainings = JSON.parse(localStorage.getItem('trainingsForSchedule') || '[]');
+            if (savedTrainings.length === 0) {
+                setSchedule(null);
+                return;
+            }
+
+            const sortedTrainings = [...savedTrainings].sort((a, b) => {
+                if (a.tipo === 'Grupo' && b.tipo !== 'Grupo') return -1;
+                if (a.tipo !== 'Grupo' && b.tipo === 'Grupo') return 1;
+                return b.duracao - a.duracao;
+            });
+
+            const weekHours = {
+                Monday: { Manhã: 240, Tarde: 240, trainings: [] },
+                Tuesday: { Manhã: 240, Tarde: 240, trainings: [] },
+                Wednesday: { Manhã: 240, Tarde: 240, trainings: [] },
+                Thursday: { Manhã: 240, Tarde: 240, trainings: [] },
+                Friday: { Manhã: 240, Tarde: 240, trainings: [] },
+            };
+
+            const days = Object.keys(weekHours);
+
+            sortedTrainings.forEach(training => {
+                let placed = false;
+                for (const day of days) {
+                    for (const period of ['Manhã', 'Tarde']) {
+                        if (weekHours[day][period] >= training.duracao) {
+                            weekHours[day].trainings.push({ ...training, period });
+                            weekHours[day][period] -= training.duracao;
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (placed) break;
+                }
+            });
+
+            const finalSchedule = {};
+            for(const day in weekHours) {
+                finalSchedule[day] = {
+                    'Manhã': weekHours[day].trainings.filter(t => t.period === 'Manhã'),
+                    'Tarde': weekHours[day].trainings.filter(t => t.period === 'Tarde'),
+                }
+            }
+            setSchedule(finalSchedule);
+        };
+
+        generateSchedule();
+        
+        window.addEventListener('storage', generateSchedule);
+        return () => window.removeEventListener('storage', generateSchedule);
+
+    }, []);
+    
+    const moveTraining = (item, to) => {
+        const { training, from } = item;
+        if (from.day === to.day && from.period === to.period) return;
+
+        setSchedule(prev => {
+            const newSchedule = JSON.parse(JSON.stringify(prev));
+            const sourceList = newSchedule[from.day][from.period];
+            const itemIndex = sourceList.findIndex(t => t.id === training.id);
+            
+            if (itemIndex > -1) {
+                const [movedItem] = sourceList.splice(itemIndex, 1);
+                newSchedule[to.day][to.period].push(movedItem);
+            }
+            
+            return newSchedule;
+        });
+    };
+    
+    const handleDelete = (trainingId, day, period) => {
+        if (window.confirm("Tem certeza que deseja remover este treinamento da agenda?")) {
+            setSchedule(prev => {
+                const newSchedule = JSON.parse(JSON.stringify(prev));
+                newSchedule[day][period] = newSchedule[day][period].filter(t => t.id !== trainingId);
+                return newSchedule;
+            });
+            toast({
+                title: "Treinamento removido",
+                description: "O treinamento foi removido da agenda desta semana.",
+            });
+        }
+    };
+    
+    const handlePrint = () => {
+        window.print();
+    };
+
+    if (!schedule) {
+        return (
+            <div className="text-center py-20 no-print">
+              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-700">Nenhuma agenda gerada</h2>
+              <p className="text-gray-500 mt-2">
+                Vá para a aba "Integrações da Semana", selecione as funções e clique em "Usar na Agenda".
+              </p>
+            </div>
+        );
+    }
+    
+    const dayNames = {
+        Monday: 'Segunda-feira',
+        Tuesday: 'Terça-feira',
+        Wednesday: 'Quarta-feira',
+        Thursday: 'Quinta-feira',
+        Friday: 'Sexta-feira',
+    };
+
+    return (
+        <DndProvider backend={HTML5Backend}>
+            <div className="space-y-6" id="schedule-to-print">
+                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-1">Agenda da Semana</h2>
+                        <p className="text-gray-500">Arraste, solte ou exclua os treinamentos para reorganizar a agenda.</p>
+                    </div>
+                     <div className="flex gap-2">
+                        <Button onClick={handlePrint}>
+                            <Printer className="w-4 h-4 mr-2" />
+                            Imprimir Agenda
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-4">
+                    {Object.keys(schedule).map((day) => (
+                        <div key={day} className="space-y-4">
+                            <h3 className="text-center font-bold text-gray-700">{dayNames[day]}</h3>
+                            <div className="space-y-4">
+                                <DroppableCell day={day} period="Manhã" trainings={schedule[day]['Manhã']} onMove={moveTraining} onDelete={handleDelete}>
+                                    <p className="text-sm font-semibold text-center text-gray-600">Manhã</p>
+                                </DroppableCell>
+                                <DroppableCell day={day} period="Tarde" trainings={schedule[day]['Tarde']} onMove={moveTraining} onDelete={handleDelete}>
+                                    <p className="text-sm font-semibold text-center text-gray-600">Tarde</p>
+                                </DroppableCell>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </DndProvider>
+    );
 };
 
 export default ScheduleTab;

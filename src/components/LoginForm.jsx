@@ -1,130 +1,116 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, User, LogIn } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from './ui/use-toast';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Mail, KeyRound } from 'lucide-react';
 
 const LoginForm = ({ onLogin }) => {
-  const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
-  });
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simular autenticação
     setTimeout(() => {
-      if (credentials.username === 'admin' && credentials.password === 'admin123') {
+      let userRole = null;
+
+      if (username === 'Daiane' && password === 'Maia@321') {
+        userRole = 'admin';
+      } else if (username === 'Integração' && password === 'mudar@123') {
+        userRole = 'user';
+      }
+
+      if (userRole) {
         toast({
-          title: "Login realizado com sucesso!",
-          description: "Bem-vindo ao sistema de integração.",
+          title: "Login bem-sucedido!",
+          description: `Bem-vindo, ${username}!`,
         });
-        onLogin();
+        onLogin(userRole);
       } else {
         toast({
-          title: "Erro de autenticação",
-          description: "Usuário ou senha incorretos. Use admin/admin123",
-          variant: "destructive"
+          title: "Erro de Login",
+          description: "Usuário ou senha inválidos.",
+          variant: "destructive",
         });
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }, 1000);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md"
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-4xl h-[550px] bg-white rounded-2xl shadow-2xl flex overflow-hidden"
       >
-        <div className="glass-effect rounded-2xl p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring" }}
-              className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4"
-            >
-              <Lock className="w-8 h-8 text-white" />
-            </motion.div>
-            <h1 className="text-2xl font-bold gradient-text mb-2">
-              Sistema de Integração
-            </h1>
-            <p className="text-slate-300">
-              Faça login para acessar o sistema
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-slate-200">
-                Usuário
-              </Label>
+        {/* Coluna da Esquerda - Formulário */}
+        <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Login</h2>
+            <p className="text-gray-500 mb-8">Por favor, insira seus dados para continuar</p>
+            
+            <form onSubmit={handleLogin} className="space-y-6">
               <div className="relative">
-                <User className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
-                  id="username"
                   type="text"
-                  placeholder="Digite seu usuário"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
-                  className="pl-10 bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400"
+                  placeholder="Usuário ou Email"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10 h-12"
                   required
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-200">
-                Senha
-              </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
-                  id="password"
                   type="password"
-                  placeholder="Digite sua senha"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                  className="pl-10 bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-400"
+                  placeholder="Senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 h-12"
                   required
                 />
               </div>
-            </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-3 rounded-lg transition-all duration-200"
-            >
-              {isLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                />
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Entrar
-                </>
-              )}
-            </Button>
-          </form>
+              <div className="flex items-center justify-between text-sm">
+                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+                  Esqueceu a senha?
+                </a>
+              </div>
 
-          <div className="mt-6 p-4 bg-slate-800/30 rounded-lg">
-            <p className="text-xs text-slate-400 text-center">
-              <strong>Credenciais de teste:</strong><br />
-              Usuário: admin | Senha: admin123
-            </p>
-          </div>
+              <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-lg" disabled={isLoading}>
+                {isLoading ? 'Entrando...' : 'LOG IN'}
+              </Button>
+            </form>
+          </motion.div>
+        </div>
+
+        {/* Coluna da Direita - Boas-vindas */}
+        <div className="hidden md:flex w-1/2 bg-blue-600 p-12 text-white flex-col justify-center items-center text-center relative overflow-hidden">
+          <div className="wavy-background"></div>
+          
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="z-10"
+          >
+            <h1 className="text-4xl font-bold mb-4">Bem-vindo!</h1>
+            <p className="mb-8">Insira seus dados e comece sua jornada conosco.</p>
+            {/* O BOTÃO "CADASTRE-SE" FOI REMOVIDO DAQUI */}
+          </motion.div>
         </div>
       </motion.div>
     </div>

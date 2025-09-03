@@ -6,71 +6,99 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 216 100% 50%; /* Azul vibrante */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 20% 96.1%; /* Cinza claro */
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 20% 96.1%; /* Cinza claro */
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 20% 96.1%; /* Cinza claro */
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 216 100% 50%;
-    --radius: 0.5rem;
+    /* ... (resto das suas variáveis CSS) ... */
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    /* ... (resto das suas variáveis CSS para o modo escuro) ... */
   }
 }
 
-body {
-  @apply bg-gray-100 text-gray-900 min-h-screen;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-/* --- ESTILOS DA AGENDA --- */
+/* ===== ADICIONE ESTE BLOCO NO FINAL DO ARQUIVO ===== */
 
-.calendar-grid {
-  display: grid;
-  /* Mantém as 7 colunas (Horário + 6 dias) */
-  grid-template-columns: 100px repeat(6, 1fr); 
+@layer base {
+  @page {
+    size: A4 landscape; /* Define a página como A4 em modo paisagem */
+    margin: 1cm;
+  }
+
+  @media print {
+    body {
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      background-color: white !important;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* Esconde tudo que tiver a classe .no-print */
+    .no-print {
+      display: none !important;
+    }
+
+    /* Garante que a área da agenda ocupe o espaço necessário */
+    main {
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: 100% !important;
+    }
+    
+    #schedule-to-print {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    /* Ajusta o grid para caber na página */
+    .grid {
+        gap: 0.5rem !important;
+    }
+    
+    /* Melhora a aparência das células e dos cards na impressão */
+    .p-2.rounded-lg.h-full {
+      border: 1px solid #eee;
+    }
+
+    .p-2.rounded-md.shadow-sm {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+  }
 }
+/* Adicione este bloco no final do seu arquivo index.css */
+@layer utilities {
+  .wavy-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #3a79f0; /* Cor de fundo um pouco diferente para a onda */
+    opacity: 0.3;
+    clip-path: polygon(0 25%, 100% 0, 100% 75%, 0 100%);
+    animation: wave 10s infinite alternate ease-in-out;
+  }
 
-/* AQUI ESTÁ A CORREÇÃO PRINCIPAL:
-  - Removemos a altura mínima fixa do @apply.
-  - Adicionamos 'flex flex-col gap-2' para que a célula empilhe os cards verticalmente.
-  - A propriedade 'min-height' garante que a célula tenha um tamanho mínimo, mas possa crescer.
-*/
-.calendar-cell {
-  @apply p-2 border-b border-r border-gray-200 flex flex-col gap-2;
-  min-height: 120px;
-}
-
-.calendar-header {
-  @apply bg-gray-50 font-medium text-gray-600 text-center;
-  /* Remove o comportamento flex do cabeçalho e reseta a altura mínima */
-  display: block; 
-  min-height: auto !important;
-}
-
-.calendar-time-col {
-  @apply bg-gray-50 font-medium text-gray-600 text-center flex flex-col items-center justify-center;
-}
-
-/* ESTILOS ORIGINAIS DOS CARDS (RESTAURADOS)
-*/
-.training-block {
-  @apply rounded-md p-2 text-xs font-medium shadow-sm border-l-4;
-}
-
-.training-individual {
-  @apply bg-blue-50 border-blue-500 text-blue-800;
-}
-
-.training-group {
-  @apply bg-green-50 border-green-500 text-green-800;
+  @keyframes wave {
+    0% {
+      clip-path: polygon(0 25%, 100% 0, 100% 75%, 0 100%);
+    }
+    50% {
+      clip-path: polygon(0 0, 100% 25%, 100% 100%, 0 75%);
+    }
+    100% {
+      clip-path: polygon(0 25%, 100% 0, 100% 75%, 0 100%);
+    }
+  }
 }

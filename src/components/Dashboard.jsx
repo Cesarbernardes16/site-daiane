@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LogOut, Users, Calendar, Settings, BookOpen } from 'lucide-react';
+import { LogOut, Users, Calendar, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import TrainingsTab from '@/components/TrainingsTab';
-import IntegrationsTab from '@/components/IntegrationsTab';
-import ScheduleTab from '@/components/ScheduleTab';
+import TrainingsTab from './TrainingsTab';
+import IntegrationsTab from './IntegrationsTab';
+import ScheduleTab from './ScheduleTab';
 
-const Dashboard = ({ onLogout }) => {
+const Dashboard = ({ onLogout, userRole }) => {
   const [activeTab, setActiveTab] = useState('trainings');
 
   return (
@@ -16,18 +16,10 @@ const Dashboard = ({ onLogout }) => {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">
-                  Sistema de Integração
-                </h1>
-                <p className="text-sm text-gray-500">
-                  Gestão de Treinamentos
-                </p>
-              </div>
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-800">
+                Sistema de Integração
+              </h1>
             </div>
             
             <Button
@@ -56,7 +48,7 @@ const Dashboard = ({ onLogout }) => {
                 className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
               >
                 <Settings className="w-4 h-4 mr-2" />
-                Treinamentos
+                Gestão de Treinamentos
               </TabsTrigger>
               <TabsTrigger 
                 value="integrations"
@@ -75,7 +67,8 @@ const Dashboard = ({ onLogout }) => {
             </TabsList>
 
             <TabsContent value="trainings" className="space-y-6">
-              <TrainingsTab />
+              {/* Passando a prop userRole para o TrainingsTab */}
+              <TrainingsTab userRole={userRole} />
             </TabsContent>
 
             <TabsContent value="integrations" className="space-y-6">

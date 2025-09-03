@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
-const TrainingsTab = () => {
+const TrainingsTab = ({ userRole }) => {
+  const { toast } = useToast();
   const [trainings, setTrainings] = useState([]);
   const [filteredTrainings, setFilteredTrainings] = useState([]);
   const [filter, setFilter] = useState('');
@@ -30,21 +31,13 @@ const TrainingsTab = () => {
       const parsedTrainings = JSON.parse(savedTrainings);
       setTrainings(parsedTrainings);
       setFilteredTrainings(parsedTrainings);
-    } else {
-      const exampleTrainings = [
-        { id: 1, funcao: 'Motorista', treinamento: 'Segurança no Trânsito', duracao: 4, responsavel: 'João Silva', tipo: 'Grupo' },
-        { id: 2, funcao: 'Motorista', treinamento: 'Manuseio de Veículos', duracao: 2, responsavel: 'Maria Santos', tipo: 'Individual' },
-        { id: 3, funcao: 'Auxiliar', treinamento: 'Atendimento ao Cliente', duracao: 3, responsavel: 'Carlos Lima', tipo: 'Grupo' }
-      ];
-      setTrainings(exampleTrainings);
-      setFilteredTrainings(exampleTrainings);
-      localStorage.setItem('trainings', JSON.stringify(exampleTrainings));
     }
   }, []);
 
   useEffect(() => {
     const result = trainings.filter(training =>
-      training.funcao.toLowerCase().includes(filter.toLowerCase())
+      training.funcao.toLowerCase().includes(filter.toLowerCase()) ||
+      training.treinamento.toLowerCase().includes(filter.toLowerCase())
     );
     setFilteredTrainings(result);
   }, [filter, trainings]);
@@ -116,9 +109,11 @@ const TrainingsTab = () => {
   };
 
   const handleDelete = (id) => {
-    const newTrainings = trainings.filter(t => t.id !== id);
-    saveTrainings(newTrainings);
-    toast({ title: "Sucesso!", description: "Treinamento excluído com sucesso" });
+    if (window.confirm("Esta ação excluirá o treinamento permanentemente. Deseja continuar?")) {
+      const newTrainings = trainings.filter(t => t.id !== id);
+      saveTrainings(newTrainings);
+      toast({ title: "Sucesso!", description: "Treinamento excluído com sucesso" });
+    }
   };
 
   return (
@@ -136,7 +131,7 @@ const TrainingsTab = () => {
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button onClick={() => { setEditingTraining(null); setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' }); setIsDialogOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white">
                 <Plus className="w-4 h-4 mr-2" />
                 Novo
               </Button>
@@ -148,10 +143,10 @@ const TrainingsTab = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2"><Label htmlFor="funcao">Função</Label><Input id="funcao" value={formData.funcao} onChange={(e) => setFormData(prev => ({ ...prev, funcao: e.target.value }))} placeholder="Ex: Motorista" /></div>
                 <div className="space-y-2"><Label htmlFor="treinamento">Treinamento</Label><Input id="treinamento" value={formData.treinamento} onChange={(e) => setFormData(prev => ({ ...prev, treinamento: e.target.value }))} placeholder="Nome do treinamento" /></div>
-                <div className="space-y-2"><Label htmlFor="duracao">Duração (horas)</Label><Input id="duracao" type="number" min="1" max="8" value={formData.duracao} onChange={(e) => setFormData(prev => ({ ...prev, duracao: e.target.value }))} placeholder="Ex: 4" /></div>
+                <div className="space-y-2"><Label htmlFor="duracao">Duração (minutos)</Label><Input id="duracao" type="number" min="1" value={formData.duracao} onChange={(e) => setFormData(prev => ({ ...prev, duracao: e.target.value }))} placeholder="Ex: 120" /></div>
                 <div className="space-y-2"><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" value={formData.responsavel} onChange={(e) => setFormData(prev => ({ ...prev, responsavel: e.target.value }))} placeholder="Nome do instrutor" /></div>
                 <div className="space-y-2"><Label htmlFor="tipo">Tipo</Label><Select value={formData.tipo} onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Individual">Individual</SelectItem><SelectItem value="Grupo">Em Grupo</SelectItem></SelectContent></Select></div>
-                <div className="flex gap-2 pt-4"><Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">{editingTraining ? 'Atualizar' : 'Cadastrar'}</Button><Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); setEditingTraining(null); setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' }); }}>Cancelar</Button></div>
+                <div className="flex gap-2 pt-4"><Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">{editingTraining ? 'Atualizar' : 'Cadastrar'}</Button><Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); setEditingTraining(null); }}>Cancelar</Button></div>
               </form>
             </DialogContent>
           </Dialog>
@@ -162,7 +157,7 @@ const TrainingsTab = () => {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <Input
           type="text"
-          placeholder="Filtrar por função..."
+          placeholder="Filtrar por função ou treinamento..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="pl-10 w-full sm:w-72"
@@ -187,10 +182,23 @@ const TrainingsTab = () => {
                 <motion.tr key={training.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                   <td className="p-4 text-gray-800 font-medium">{training.funcao}</td>
                   <td className="p-4 text-gray-600">{training.treinamento}</td>
-                  <td className="p-4 text-gray-600">{training.duracao}h</td>
+                  <td className="p-4 text-gray-600">{training.duracao}m</td>
                   <td className="p-4 text-gray-600">{training.responsavel}</td>
                   <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${training.tipo === 'Individual' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{training.tipo}</span></td>
-                  <td className="p-4"><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => handleEdit(training)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"><Edit className="w-4 h-4" /></Button><Button size="sm" variant="ghost" onClick={() => handleDelete(training.id)} className="text-red-600 hover:text-red-700 hover:bg-red-100"><Trash2 className="w-4 h-4" /></Button></div></td>
+                  <td className="p-4">
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => handleEdit(training)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      
+                      {/* O botão de excluir só aparece se o userRole for 'admin' */}
+                      {userRole === 'admin' && (
+                        <Button size="sm" variant="ghost" onClick={() => handleDelete(training.id)} className="text-red-600 hover:text-red-700 hover:bg-red-100">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
                 </motion.tr>
               ))}
             </tbody>
