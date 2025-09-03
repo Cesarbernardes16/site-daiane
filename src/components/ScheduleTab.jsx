@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { motion } from 'framer-motion';
-import { Calendar, Printer, Trash2 } from 'lucide-react';
+import { Calendar, Printer, Trash2, Eraser } from 'lucide-react'; // Adicionado o ícone Eraser
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
 
@@ -176,13 +176,25 @@ const ScheduleTab = () => {
         window.print();
     };
 
+    // ===== NOVA FUNÇÃO PARA LIMPAR A AGENDA =====
+    const handleClearSchedule = () => {
+        if (window.confirm("Tem certeza que deseja limpar toda a agenda da semana? Esta ação não pode ser desfeita.")) {
+            setSchedule(null);
+            localStorage.removeItem('trainingsForSchedule');
+            toast({
+                title: "Agenda Limpa!",
+                description: "A agenda foi reiniciada com sucesso.",
+            });
+        }
+    };
+
     if (!schedule) {
         return (
             <div className="text-center py-20 no-print">
               <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-700">Nenhuma agenda gerada</h2>
               <p className="text-gray-500 mt-2">
-                Vá para a aba "Integrações da Semana", selecione as funções e clique em "Usar na Agenda".
+                Vá para a aba "Integrações da Semana" para iniciar um novo planejamento.
               </p>
             </div>
         );
@@ -204,10 +216,15 @@ const ScheduleTab = () => {
                         <h2 className="text-2xl font-bold text-gray-800 mb-1">Agenda da Semana</h2>
                         <p className="text-gray-500">Arraste, solte ou exclua os treinamentos para reorganizar a agenda.</p>
                     </div>
+                     {/* ===== BOTÃO DE LIMPAR ADICIONADO AQUI ===== */}
                      <div className="flex gap-2">
                         <Button onClick={handlePrint}>
                             <Printer className="w-4 h-4 mr-2" />
                             Imprimir Agenda
+                        </Button>
+                        <Button onClick={handleClearSchedule} variant="destructive">
+                            <Eraser className="w-4 h-4 mr-2" />
+                            Limpar Agenda
                         </Button>
                     </div>
                 </div>

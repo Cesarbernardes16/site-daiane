@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '../supabaseClient';
+import { useToast } from "@/components/ui/use-toast";
 import { Plus, Edit, Trash2, BookOpen, Clock, User, Upload, Search } from 'lucide-react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
@@ -7,13 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useToast } from '@/components/ui/use-toast';
 
 const TrainingsTab = ({ userRole }) => {
   const { toast } = useToast();
   const [trainings, setTrainings] = useState([]);
-  const [filteredTrainings, setFilteredTrainings] = useState([]);
-  const [filter, setFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTraining, setEditingTraining] = useState(null);
   const [formData, setFormData] = useState({
@@ -26,80 +27,75 @@ const TrainingsTab = ({ userRole }) => {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    const savedTrainings = localStorage.getItem('trainings');
-    if (savedTrainings) {
-      const parsedTrainings = JSON.parse(savedTrainings);
-      setTrainings(parsedTrainings);
-      setFilteredTrainings(parsedTrainings);
-    }
+    getTrainings();
   }, []);
 
-  useEffect(() => {
-    const result = trainings.filter(training =>
-      training.funcao.toLowerCase().includes(filter.toLowerCase()) ||
-      training.treinamento.toLowerCase().includes(filter.toLowerCase())
-    );
-    setFilteredTrainings(result);
-  }, [filter, trainings]);
+  async function getTrainings() {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('trainings')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const saveTrainings = (newTrainings) => {
-    setTrainings(newTrainings);
-    localStorage.setItem('trainings', JSON.stringify(newTrainings));
-  };
-
-  const handleImportCSV = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          const importedData = results.data.map(row => ({
-            id: Date.now() + Math.random(),
-            funcao: row.Função || row.funcao,
-            treinamento: row.Treinamento || row.treinamento,
-            duracao: parseInt(row.Duração || row.duração, 10),
-            responsavel: row.Responsável || row.responsavel,
-            tipo: row.Tipo || row.tipo || 'Individual'
-          })).filter(t => t.funcao && t.treinamento && !isNaN(t.duracao) && t.responsavel);
-
-          const newTrainings = [...trainings, ...importedData];
-          saveTrainings(newTrainings);
-          toast({
-            title: "Sucesso!",
-            description: `${importedData.length} treinamentos importados.`
-          });
-        },
-        error: (error) => {
-          toast({
-            title: "Erro na importação",
-            description: error.message,
-            variant: "destructive"
-          });
-        }
+      if (error) throw error;
+      setTrainings(data || []);
+    } catch (error) {
+      toast({
+        title: "Erro ao buscar dados",
+        description: error.message,
+        variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
-  const handleSubmit = (e) => {
+  const filteredTrainings = trainings.filter(
+    (training) =>
+      (training.funcao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (training.treinamento || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.funcao || !formData.treinamento || !formData.duracao || !formData.responsavel) {
       toast({ title: "Erro", description: "Todos os campos são obrigatórios", variant: "destructive" });
       return;
     }
-    const trainingData = { ...formData, duracao: parseInt(formData.duracao), id: editingTraining ? editingTraining.id : Date.now() };
-    let newTrainings;
-    if (editingTraining) {
-      newTrainings = trainings.map(t => t.id === editingTraining.id ? trainingData : t);
-      toast({ title: "Sucesso!", description: "Treinamento atualizado com sucesso" });
-    } else {
-      newTrainings = [...trainings, trainingData];
-      toast({ title: "Sucesso!", description: "Treinamento cadastrado com sucesso" });
+    const trainingData = { ...formData, duracao: parseInt(formData.duracao) };
+
+    try {
+        if (editingTraining) {
+            const { data, error } = await supabase.from('trainings').update(trainingData).eq('id', editingTraining.id).select();
+            if (error) throw error;
+            setTrainings(trainings.map(t => (t.id === data[0].id ? data[0] : t)));
+            toast({ title: "Sucesso!", description: "Treinamento atualizado." });
+        } else {
+            const { data, error } = await supabase.from('trainings').insert(trainingData).select();
+            if (error) throw error;
+            setTrainings([data[0], ...trainings]);
+            toast({ title: "Sucesso!", description: "Treinamento adicionado." });
+        }
+        setIsDialogOpen(false);
+        setEditingTraining(null);
+        setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' });
+    } catch (error) {
+        toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     }
-    saveTrainings(newTrainings);
-    setIsDialogOpen(false);
-    setEditingTraining(null);
-    setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' });
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Esta ação excluirá o treinamento permanentemente. Deseja continuar?")) {
+        try {
+            const { error } = await supabase.from('trainings').delete().eq('id', id);
+            if (error) throw error;
+            setTrainings(trainings.filter(t => t.id !== id));
+            toast({ title: "Sucesso", description: "Treinamento excluído." });
+        } catch (error) {
+            toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+        }
+    }
   };
 
   const handleEdit = (training) => {
@@ -108,12 +104,46 @@ const TrainingsTab = ({ userRole }) => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Esta ação excluirá o treinamento permanentemente. Deseja continuar?")) {
-      const newTrainings = trainings.filter(t => t.id !== id);
-      saveTrainings(newTrainings);
-      toast({ title: "Sucesso!", description: "Treinamento excluído com sucesso" });
-    }
+  const handleImportCSV = (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: async (results) => {
+            const importedData = results.data.map(row => ({
+              funcao: row.Função || row.funcao,
+              treinamento: row.Treinamento || row.treinamento,
+              duracao: parseInt(row['Duração (minutos)'] || row.duracao, 10),
+              responsavel: row.Responsável || row.responsavel,
+              tipo: row.Tipo || row.tipo || 'Individual'
+            })).filter(t => t.funcao && t.treinamento && !isNaN(t.duracao) && t.responsavel);
+  
+            if(importedData.length > 0) {
+              const { error } = await supabase.from('trainings').insert(importedData);
+    
+              if (error) {
+                toast({ title: "Erro na importação", description: error.message, variant: "destructive" });
+              } else {
+                toast({ title: "Sucesso!", description: `${importedData.length} treinamentos importados.`});
+                getTrainings();
+              }
+            }
+          },
+          error: (error) => {
+            toast({ title: "Erro na importação", description: error.message, variant: "destructive" });
+          }
+        });
+      }
+  };
+
+  const formatDuration = (totalMinutes) => {
+      if (!totalMinutes) return '0m';
+      if (totalMinutes < 60) return `${totalMinutes}m`;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      if (minutes === 0) return `${hours}h`;
+      return `${hours}h ${minutes}m`;
   };
 
   return (
@@ -124,11 +154,19 @@ const TrainingsTab = ({ userRole }) => {
           <p className="text-gray-500">Configure os treinamentos obrigatórios para cada função.</p>
         </div>
         <div className="flex gap-2">
-          <input type="file" ref={fileInputRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current.click()}>
-            <Upload className="w-4 h-4 mr-2" />
-            Importar CSV
-          </Button>
+          
+          {/* ===== CONDIÇÃO DE PERMISSÃO ADICIONADA AQUI ===== */}
+          {/* O botão de importar só aparece se o userRole for 'admin' */}
+          {userRole === 'admin' && (
+            <>
+              <input type="file" ref={fileInputRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
+              <Button variant="outline" onClick={() => fileInputRef.current.click()}>
+                <Upload className="w-4 h-4 mr-2" />
+                Importar CSV
+              </Button>
+            </>
+          )}
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => { setEditingTraining(null); setFormData({ funcao: '', treinamento: '', duracao: '', responsavel: '', tipo: 'Individual' }); setIsDialogOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -158,8 +196,8 @@ const TrainingsTab = ({ userRole }) => {
         <Input
           type="text"
           placeholder="Filtrar por função ou treinamento..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 w-full sm:w-72"
         />
       </div>
@@ -178,38 +216,43 @@ const TrainingsTab = ({ userRole }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredTrainings.map((training, index) => (
-                <motion.tr key={training.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                  <td className="p-4 text-gray-800 font-medium">{training.funcao}</td>
-                  <td className="p-4 text-gray-600">{training.treinamento}</td>
-                  <td className="p-4 text-gray-600">{training.duracao}m</td>
-                  <td className="p-4 text-gray-600">{training.responsavel}</td>
-                  <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${training.tipo === 'Individual' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{training.tipo}</span></td>
-                  <td className="p-4">
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => handleEdit(training)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      
-                      {/* O botão de excluir só aparece se o userRole for 'admin' */}
-                      {userRole === 'admin' && (
-                        <Button size="sm" variant="ghost" onClick={() => handleDelete(training.id)} className="text-red-600 hover:text-red-700 hover:bg-red-100">
-                          <Trash2 className="w-4 h-4" />
+              {loading ? (
+                <tr><td colSpan="6" className="text-center p-12 text-gray-500">Carregando treinamentos...</td></tr>
+              ) : filteredTrainings.length > 0 ? (
+                filteredTrainings.map((training, index) => (
+                  <motion.tr key={training.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                    <td className="p-4 text-gray-800 font-medium">{training.funcao}</td>
+                    <td className="p-4 text-gray-600">{training.treinamento}</td>
+                    <td className="p-4 text-gray-600">{formatDuration(training.duracao)}</td>
+                    <td className="p-4 text-gray-600">{training.responsavel}</td>
+                    <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${training.tipo === 'Individual' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{training.tipo}</span></td>
+                    <td className="p-4">
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(training)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
+                          <Edit className="w-4 h-4" />
                         </Button>
-                      )}
+                        {userRole === 'admin' && (
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(training.id)} className="text-red-600 hover:text-red-700 hover:bg-red-100">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6">
+                    <div className="text-center py-12">
+                      <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500">Nenhum treinamento encontrado.</p>
+                      <p className="text-gray-400 text-sm">{trainings.length > 0 ? 'Tente um filtro diferente.' : 'Clique em "Novo" para começar.'}</p>
                     </div>
                   </td>
-                </motion.tr>
-              ))}
+                </tr>
+              )}
             </tbody>
           </table>
-          {filteredTrainings.length === 0 && (
-            <div className="text-center py-12">
-              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhum treinamento encontrado.</p>
-              <p className="text-gray-400 text-sm">{trainings.length > 0 ? 'Tente um filtro diferente.' : 'Clique em "Novo" para começar.'}</p>
-            </div>
-          )}
         </div>
       </motion.div>
     </div>
