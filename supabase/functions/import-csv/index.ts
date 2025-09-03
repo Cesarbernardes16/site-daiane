@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from "@supabase/supabase-js";
 import { corsHeaders } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
@@ -14,12 +14,16 @@ Deno.serve(async (req) => {
       throw new Error("Dados de treinamento inválidos ou ausentes.");
     }
     
-    // --- CORREÇÃO APLICADA AQUI ---
-    // Busca as variáveis de ambiente pelos seus NOMES CORRETOS.
-    const supabaseAdmin = createClient(
-      Deno.env.get('https://nbaoripzckjnqwpsnxnz.supabase.co') ?? '',
-      Deno.env.get('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iYW9yaXB6Y2tqbnF3cHNueG56Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MjMxNzc4NSwiZXhwIjoyMDU3ODkzNzg1fQ.fEw0YukWwXTv4wCNBwNFLsUarVYMOMW9wYmXWLNiOnQ') ?? ''
-    );
+    // --- CORREÇÃO 2: Use os nomes corretos das variáveis de ambiente ---
+    const supabaseUrl = Deno.env.get('https://nbaoripzckjnqwpsnxnz.supabase.co') ?? '';
+    const serviceRoleKey = Deno.env.get('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iYW9yaXB6Y2tqbnF3cHNueG56Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MjMxNzc4NSwiZXhwIjoyMDU3ODkzNzg1fQ.fEw0YukWwXTv4wCNBwNFLsUarVYMOMW9wYmXWLNiOnQ') ?? '';
+
+    // Inicializa o cliente de administração do Supabase
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+      },
+    });
 
     // 1. Apaga todos os registros existentes na tabela
     const { error: deleteError } = await supabaseAdmin

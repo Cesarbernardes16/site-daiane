@@ -1,10 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { motion } from 'framer-motion';
-import { Calendar, Printer, Trash2, Eraser } from 'lucide-react'; // Adicionado o ícone Eraser
+import { Calendar, Printer, Trash2, Eraser, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast";
+
+// Função para gerar uma cor pastel aleatória
+const getRandomPastelColor = () => {
+  const h = Math.floor(Math.random() * 360);
+  const s = Math.floor(Math.random() * 25) + 75; // Saturação entre 75% e 100%
+  const l = Math.floor(Math.random() * 15) + 80; // Luminosidade entre 80% e 95%
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
 
 // Função para formatar a duração
 const formatDuration = (totalMinutes) => {
@@ -18,8 +26,8 @@ const formatDuration = (totalMinutes) => {
 
 const ItemType = 'TRAINING';
 
-// Componente para um item de treinamento que pode ser arrastado
-const DraggableTraining = ({ training, day, period, onDelete }) => {
+// --- Componente DraggableTraining atualizado para usar cores dinâmicas ---
+const DraggableTraining = ({ training, day, period, onDelete, color }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: ItemType,
     item: { training, from: { day, period } },
@@ -34,28 +42,33 @@ const DraggableTraining = ({ training, day, period, onDelete }) => {
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
-      className={`relative group p-2 rounded-md shadow-sm text-xs ${isDragging ? 'opacity-50' : ''} ${
-        training.tipo === 'Grupo' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-      }`}
+      style={{ backgroundColor: color, color: '#374151' }} // Usa a cor passada como prop
+      className={`relative group p-2 rounded-md shadow-sm text-xs ${isDragging ? 'opacity-50' : ''}`}
     >
       <button
         onClick={() => onDelete(training.id, day, period)}
-        className="absolute top-1 right-1 p-0.5 rounded bg-black/10 text-white opacity-0 group-hover:opacity-100 transition-opacity no-print"
+        className="absolute top-1 right-1 p-0.5 rounded bg-black/20 text-white opacity-0 group-hover:opacity-100 transition-opacity no-print"
       >
         <Trash2 size={12} />
       </button>
       
-      <div ref={drag} className="cursor-grab">
-        <p className="font-bold pr-4">{training.treinamento}</p>
-        <p>{training.responsavel}</p>
-        <p className="font-mono text-right">{formatDuration(training.duracao)}</p>
+      <div ref={drag} className="cursor-grab space-y-1">
+        <div className="flex justify-between items-start">
+            <p className="font-bold pr-2 flex-1 break-words">{training.treinamento}</p>
+            <p className="font-mono text-xs bg-black/10 px-1.5 py-0.5 rounded">{formatDuration(training.duracao)}</p>
+        </div>
+        <div className="text-[11px] space-y-0.5">
+            <p><span className="font-semibold">Responsável:</span> {training.responsavel}</p>
+            <p><span className="font-semibold">Tipo:</span> {training.tipo}</p>
+            <p><span className="font-semibold">Funções:</span> {Array.isArray(training.funcao) ? training.funcao.join(', ') : training.funcao}</p>
+        </div>
       </div>
     </motion.div>
   );
 };
 
-// Componente para uma célula do calendário que pode receber itens
-const DroppableCell = ({ day, period, trainings, onMove, onDelete, children }) => {
+// --- Componente DroppableCell atualizado para passar a cor ---
+const DroppableCell = ({ day, period, trainings, onMove, onDelete, colorMap, children }) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: ItemType,
     drop: (item) => onMove(item, { day, period }),
@@ -72,7 +85,14 @@ const DroppableCell = ({ day, period, trainings, onMove, onDelete, children }) =
       {children}
       <div className="space-y-2 mt-2">
         {trainings.map(t => (
-          <DraggableTraining key={t.id} training={t} day={day} period={period} onDelete={onDelete} />
+          <DraggableTraining 
+            key={t.id} 
+            training={t} 
+            day={day} 
+            period={period} 
+            onDelete={onDelete}
+            color={colorMap[t.responsavel] || '#E5E7EB'} // Passa a cor do mapa
+          />
         ))}
       </div>
     </div>
@@ -83,7 +103,15 @@ const DroppableCell = ({ day, period, trainings, onMove, onDelete, children }) =
 const ScheduleTab = () => {
     const { toast } = useToast();
     const [schedule, setSchedule] = useState(null);
+    const [responsibleColors, setResponsibleColors] = useState({});
 
+    // Carrega cores salvas do localStorage ao iniciar
+    useEffect(() => {
+        const savedColors = JSON.parse(localStorage.getItem('responsibleColors') || '{}');
+        setResponsibleColors(savedColors);
+    }, []);
+
+    // --- LÓGICA DE GERAÇÃO DA AGENDA TOTALMENTE REFEITA ---
     useEffect(() => {
         const generateSchedule = () => {
             const savedTrainings = JSON.parse(localStorage.getItem('trainingsForSchedule') || '[]');
@@ -92,12 +120,19 @@ const ScheduleTab = () => {
                 return;
             }
 
-            const sortedTrainings = [...savedTrainings].sort((a, b) => {
-                if (a.tipo === 'Grupo' && b.tipo !== 'Grupo') return -1;
-                if (a.tipo !== 'Grupo' && b.tipo === 'Grupo') return 1;
-                return b.duracao - a.duracao;
-            });
+            // 1. Agrupar treinamentos por responsável
+            const trainingsByResponsible = savedTrainings.reduce((acc, training) => {
+                const { responsavel } = training;
+                if (!acc[responsavel]) {
+                    acc[responsavel] = [];
+                }
+                acc[responsavel].push(training);
+                // Ordena os treinamentos de cada responsável pelo maior tempo
+                acc[responsavel].sort((a, b) => b.duracao - a.duracao);
+                return acc;
+            }, {});
 
+            // 2. Preparar a estrutura da semana
             const weekHours = {
                 Monday: { Manhã: 240, Tarde: 240, trainings: [] },
                 Tuesday: { Manhã: 240, Tarde: 240, trainings: [] },
@@ -105,24 +140,51 @@ const ScheduleTab = () => {
                 Thursday: { Manhã: 240, Tarde: 240, trainings: [] },
                 Friday: { Manhã: 240, Tarde: 240, trainings: [] },
             };
-
             const days = Object.keys(weekHours);
+            
+            // 3. Distribuir os treinamentos
+            for (const responsible in trainingsByResponsible) {
+                const tasks = trainingsByResponsible[responsible];
+                let placedAll = false;
 
-            sortedTrainings.forEach(training => {
-                let placed = false;
+                // Tenta colocar todos os treinamentos do responsável no mesmo dia
                 for (const day of days) {
-                    for (const period of ['Manhã', 'Tarde']) {
-                        if (weekHours[day][period] >= training.duracao) {
-                            weekHours[day].trainings.push({ ...training, period });
-                            weekHours[day][period] -= training.duracao;
-                            placed = true;
-                            break;
-                        }
+                    const totalDuration = tasks.reduce((sum, t) => sum + t.duracao, 0);
+                    if (weekHours[day]['Manhã'] + weekHours[day]['Tarde'] >= totalDuration) {
+                        tasks.forEach(task => {
+                            if (weekHours[day]['Manhã'] >= task.duracao) {
+                                weekHours[day].trainings.push({ ...task, period: 'Manhã' });
+                                weekHours[day]['Manhã'] -= task.duracao;
+                            } else {
+                                weekHours[day].trainings.push({ ...task, period: 'Tarde' });
+                                weekHours[day]['Tarde'] -= task.duracao;
+                            }
+                        });
+                        placedAll = true;
+                        break;
                     }
-                    if (placed) break;
                 }
-            });
 
+                // Se não coube no mesmo dia, distribui pela semana
+                if (!placedAll) {
+                    tasks.forEach(task => {
+                        let placed = false;
+                        for (const day of days) {
+                            for (const period of ['Manhã', 'Tarde']) {
+                                if (weekHours[day][period] >= task.duracao) {
+                                    weekHours[day].trainings.push({ ...task, period });
+                                    weekHours[day][period] -= task.duracao;
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                            if (placed) break;
+                        }
+                    });
+                }
+            }
+            
+            // 4. Formatar o resultado final
             const finalSchedule = {};
             for(const day in weekHours) {
                 finalSchedule[day] = {
@@ -139,6 +201,39 @@ const ScheduleTab = () => {
         return () => window.removeEventListener('storage', generateSchedule);
 
     }, []);
+
+    // --- Lógica para Cores Customizáveis ---
+    const uniqueResponsibles = useMemo(() => {
+        if (!schedule) return [];
+        const responsibles = new Set();
+        Object.values(schedule).forEach(day => {
+            Object.values(day).forEach(period => {
+                period.forEach(training => responsibles.add(training.responsavel));
+            });
+        });
+        return Array.from(responsibles).sort();
+    }, [schedule]);
+    
+    // Gera cores aleatórias para novos responsáveis
+    useEffect(() => {
+        const newColors = { ...responsibleColors };
+        let hasChanged = false;
+        uniqueResponsibles.forEach(name => {
+            if (!newColors[name]) {
+                newColors[name] = getRandomPastelColor();
+                hasChanged = true;
+            }
+        });
+        if (hasChanged) {
+            setResponsibleColors(newColors);
+        }
+    }, [uniqueResponsibles]);
+
+    const handleColorChange = (responsible, color) => {
+        const newColors = { ...responsibleColors, [responsible]: color };
+        setResponsibleColors(newColors);
+        localStorage.setItem('responsibleColors', JSON.stringify(newColors));
+    };
     
     const moveTraining = (item, to) => {
         const { training, from } = item;
@@ -172,11 +267,8 @@ const ScheduleTab = () => {
         }
     };
     
-    const handlePrint = () => {
-        window.print();
-    };
+    const handlePrint = () => window.print();
 
-    // ===== NOVA FUNÇÃO PARA LIMPAR A AGENDA =====
     const handleClearSchedule = () => {
         if (window.confirm("Tem certeza que deseja limpar toda a agenda da semana? Esta ação não pode ser desfeita.")) {
             setSchedule(null);
@@ -214,13 +306,12 @@ const ScheduleTab = () => {
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800 mb-1">Agenda da Semana</h2>
-                        <p className="text-gray-500">Arraste, solte ou exclua os treinamentos para reorganizar a agenda.</p>
+                        <p className="text-gray-500">Arraste e solte para reorganizar e defina cores para os responsáveis.</p>
                     </div>
-                     {/* ===== BOTÃO DE LIMPAR ADICIONADO AQUI ===== */}
                      <div className="flex gap-2">
                         <Button onClick={handlePrint}>
                             <Printer className="w-4 h-4 mr-2" />
-                            Imprimir Agenda
+                            Imprimir
                         </Button>
                         <Button onClick={handleClearSchedule} variant="destructive">
                             <Eraser className="w-4 h-4 mr-2" />
@@ -229,15 +320,33 @@ const ScheduleTab = () => {
                     </div>
                 </div>
 
+                {/* --- PAINEL DE CONTROLE DE CORES --- */}
+                <div className="p-4 bg-white border rounded-lg no-print">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><Palette size={16}/>Controle de Cores</h3>
+                    <div className="flex flex-wrap gap-4">
+                        {uniqueResponsibles.map(name => (
+                            <div key={name} className="flex items-center gap-2">
+                                <input
+                                    type="color"
+                                    value={responsibleColors[name] || '#ffffff'}
+                                    onChange={(e) => handleColorChange(name, e.target.value)}
+                                    className="w-6 h-6 rounded-full border cursor-pointer"
+                                />
+                                <span className="text-sm text-gray-600">{name}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-5 gap-4">
                     {Object.keys(schedule).map((day) => (
                         <div key={day} className="space-y-4">
                             <h3 className="text-center font-bold text-gray-700">{dayNames[day]}</h3>
                             <div className="space-y-4">
-                                <DroppableCell day={day} period="Manhã" trainings={schedule[day]['Manhã']} onMove={moveTraining} onDelete={handleDelete}>
+                                <DroppableCell day={day} period="Manhã" trainings={schedule[day]['Manhã']} onMove={moveTraining} onDelete={handleDelete} colorMap={responsibleColors}>
                                     <p className="text-sm font-semibold text-center text-gray-600">Manhã</p>
                                 </DroppableCell>
-                                <DroppableCell day={day} period="Tarde" trainings={schedule[day]['Tarde']} onMove={moveTraining} onDelete={handleDelete}>
+                                <DroppableCell day={day} period="Tarde" trainings={schedule[day]['Tarde']} onMove={moveTraining} onDelete={handleDelete} colorMap={responsibleColors}>
                                     <p className="text-sm font-semibold text-center text-gray-600">Tarde</p>
                                 </DroppableCell>
                             </div>

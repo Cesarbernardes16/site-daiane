@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Search, ListChecks, Clock, CalendarPlus } from 'lucide-react';
+import { Users, Search, CalendarPlus } from 'lucide-react';
 
 // Função para formatar a duração
 const formatDuration = (totalMinutes) => {
@@ -65,8 +65,29 @@ const IntegrationsTab = () => {
 
         if (error) throw error;
         
-        const uniqueTrainings = Array.from(new Map(data.map(item => [item.treinamento, item])).values());
-        setTrainingsForWeek(uniqueTrainings);
+        // Agrupa treinamentos por nome e agrega as funções
+        const trainingsByName = data.reduce((acc, current) => {
+          const key = current.treinamento;
+          if (!acc[key]) {
+            acc[key] = {
+              ...current,
+              funcao: [current.funcao] // Inicia com um array de funções
+            };
+          } else {
+            if (!acc[key].funcao.includes(current.funcao)) {
+              acc[key].funcao.push(current.funcao);
+            }
+          }
+          return acc;
+        }, {});
+
+        // Converte o objeto de volta para um array e ordena as funções
+        const aggregatedTrainings = Object.values(trainingsByName).map(t => ({
+          ...t,
+          funcao: t.funcao.sort()
+        }));
+
+        setTrainingsForWeek(aggregatedTrainings);
 
       } catch (error) {
         toast({
@@ -171,7 +192,6 @@ const IntegrationsTab = () => {
           )}
         </div>
         
-        {/* ===== AJUSTE REALIZADO AQUI ===== */}
         <div className="bg-gray-100 p-4 rounded-lg flex justify-between items-center">
             <div>
                 <p className="text-xs text-gray-600">Treinamentos Selecionados</p>
@@ -182,8 +202,6 @@ const IntegrationsTab = () => {
             Usar na Agenda
           </Button>
         </div>
-        {/* ================================== */}
-
       </div>
     </div>
   );

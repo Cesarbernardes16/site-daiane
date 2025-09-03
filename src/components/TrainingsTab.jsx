@@ -222,7 +222,7 @@ const TrainingsTab = ({ userRole }) => {
                 <div className="space-y-2"><Label htmlFor="treinamento">Treinamento</Label><Input id="treinamento" value={formData.treinamento} onChange={(e) => setFormData(prev => ({ ...prev, treinamento: e.target.value }))} placeholder="Nome do treinamento" /></div>
                 <div className="space-y-2"><Label htmlFor="duracao">Duração (minutos)</Label><Input id="duracao" type="number" min="1" value={formData.duracao} onChange={(e) => setFormData(prev => ({ ...prev, duracao: e.target.value }))} placeholder="Ex: 120" /></div>
                 <div className="space-y-2"><Label htmlFor="responsavel">Responsável</Label><Input id="responsavel" value={formData.responsavel} onChange={(e) => setFormData(prev => ({ ...prev, responsavel: e.target.value }))} placeholder="Nome do instrutor" /></div>
-                <div className="space-y-2"><Label htmlFor="tipo">Tipo</Label><Select value={formData.tipo} onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Individual">Individual</SelectItem><SelectItem value="Grupo">Em Grupo</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label htmlFor="tipo">Tipo</Label><Select value={formData.tipo} onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Individual">Individual</SelectItem><SelectItem value="Todos">Todos</SelectItem></SelectContent></Select></div>
                 <div className="flex gap-2 pt-4"><Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">{editingTraining ? 'Atualizar' : 'Cadastrar'}</Button><Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); setEditingTraining(null); }}>Cancelar</Button></div>
               </form>
             </DialogContent>
@@ -264,7 +264,7 @@ const TrainingsTab = ({ userRole }) => {
                     <td className="p-4 text-gray-600">{training.treinamento}</td>
                     <td className="p-4 text-gray-600">{formatDuration(training.duracao)}</td>
                     <td className="p-4 text-gray-600">{training.responsavel}</td>
-                    <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${training.tipo === 'Individual' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{training.tipo}</span></td>
+                    <td className="p-4"><span className={`px-2 py-1 rounded-full text-xs font-medium ${training.tipo === 'Individual' ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'}`}>{training.tipo}</span></td>
                     <td className="p-4">
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" onClick={() => handleEdit(training)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-100">
